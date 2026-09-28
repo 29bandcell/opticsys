@@ -35,8 +35,8 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   const { lojas, setLojaAtiva, usuarioAtual, setUsuarioAtual } = useAuthAndTenant();
 
   // Estados do Formulário de Login
-  const [emailLogin, setEmailLogin] = useState('contato@visaoprime.com.br');
-  const [senhaLogin, setSenhaLogin] = useState('123456');
+  const [emailLogin, setEmailLogin] = useState('');
+  const [senhaLogin, setSenhaLogin] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrarAcesso, setLembrarAcesso] = useState(true);
   const [isLoadingLogin, setIsLoadingLogin] = useState(false);

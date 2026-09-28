@@ -79,18 +79,28 @@ interface AuthAndTenantContextType {
   resetarCotaNotasTenant: (tenantId: string) => void;
   toggleEmissaoFiscalTenant: (tenantId: string) => void;
   
-  // Actions
   cadastrarNovaOtica: (dados: {
     nome_fantasia: string;
-    razao_social: string;
-    cnpj: string;
+    razao_social?: string;
+    cnpj?: string;
     telefone: string;
     email: string;
-    cidade: string;
-    uf: string;
+    cidade?: string;
+    uf?: string;
     plano: TenantPlan;
     nome_responsavel: string;
   }) => string;
+  adicionarFilial: (dados: {
+    nome_fantasia: string;
+    razao_social?: string;
+    cnpj?: string;
+    telefone: string;
+    email: string;
+    cidade?: string;
+    uf?: string;
+    endereco?: string;
+  }) => Loja;
+  removerLoja: (lojaId: string) => void;
   
   adicionarCliente: (cliente: Omit<Cliente, 'id' | 'loja_id' | 'created_at'>) => Cliente;
   atualizarCliente: (id: string, dados: Partial<Cliente>) => void;
@@ -236,6 +246,21 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem('opticsys_tenants_saas', JSON.stringify(tenantsSaaS));
   }, [tenantsSaaS]);
+
+  // Auto-limpeza de lojas placeholder quando existe uma loja real cadastrada pelo usuário
+  useEffect(() => {
+    if (lojas.length > 1) {
+      const lojasReais = lojas.filter(l => l.id !== 'loja-matriz');
+      if (lojasReais.length > 0 && lojas.some(l => l.id === 'loja-matriz')) {
+        setLojas(lojasReais);
+        localStorage.setItem('opticsys_lojas', JSON.stringify(lojasReais));
+        if (lojaAtivaId === 'loja-matriz') {
+          setLojaAtivaId(lojasReais[0].id);
+          localStorage.setItem('opticsys_active_loja_id', lojasReais[0].id);
+        }
+      }
+    }
+  }, [lojas, lojaAtivaId]);
 
   useEffect(() => {
     if (isDark) {
@@ -456,12 +481,64 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setLeadsSaaS(prev => [novoLead, ...prev]);
     setTenantsSaaS(prev => [novoTenant, ...prev]);
-    setLojas(prev => [...prev, novaLoja]);
-    setFuncionarios(prev => [...prev, novoAdmin]);
+    // ISOLAMENTO MULTI-TENANT:
+    // O novo cliente tem sua própria ótica isolada, não herdando o template 'loja-matriz' ou lojas de outras contas
+    setLojas([novaLoja]);
+    setFuncionarios([novoAdmin]);
     setLojaAtivaId(novaLojaId);
     setUsuarioAtual(novoAdmin);
 
+    localStorage.setItem('opticsys_lojas', JSON.stringify([novaLoja]));
+    localStorage.setItem('opticsys_funcionarios', JSON.stringify([novoAdmin]));
+    localStorage.setItem('opticsys_active_loja_id', novaLojaId);
+
     return novaLojaId;
+  };
+
+  // Adicionar Filial / Unidade para a mesma conta multi-lojas
+  const adicionarFilial = (dados: {
+    nome_fantasia: string;
+    razao_social?: string;
+    cnpj?: string;
+    telefone: string;
+    email: string;
+    cidade?: string;
+    uf?: string;
+    endereco?: string;
+  }): Loja => {
+    const novaLoja: Loja = {
+      id: `loja-filial-${Date.now()}`,
+      nome_fantasia: dados.nome_fantasia,
+      razao_social: dados.razao_social || dados.nome_fantasia,
+      cnpj: dados.cnpj || 'Não informado',
+      telefone: dados.telefone,
+      email: dados.email,
+      endereco: dados.endereco || 'Endereço a preencher',
+      cidade: dados.cidade || 'Não informada',
+      uf: dados.uf || 'BR',
+      plano: lojaAtiva.plano || 'pro',
+      status: lojaAtiva.status || 'trial',
+      trial_ate: lojaAtiva.trial_ate,
+      config_impressao: { ...lojaAtiva.config_impressao }
+    };
+
+    setLojas(prev => [...prev, novaLoja]);
+    return novaLoja;
+  };
+
+  // Remover Unidade / Filial
+  const removerLoja = (lojaId: string) => {
+    if (lojas.length <= 1) {
+      alert('Não é possível remover a única loja ativa da conta.');
+      return;
+    }
+    const atualizadas = lojas.filter(l => l.id !== lojaId);
+    setLojas(atualizadas);
+    localStorage.setItem('opticsys_lojas', JSON.stringify(atualizadas));
+    if (lojaAtivaId === lojaId) {
+      setLojaAtivaId(atualizadas[0].id);
+      localStorage.setItem('opticsys_active_loja_id', atualizadas[0].id);
+    }
   };
 
   const adicionarCliente = (clienteData: Omit<Cliente, 'id' | 'loja_id' | 'created_at'>): Cliente => {
@@ -655,6 +732,8 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       resetarCotaNotasTenant,
       toggleEmissaoFiscalTenant,
       cadastrarNovaOtica,
+      adicionarFilial,
+      removerLoja,
       adicionarCliente,
       atualizarCliente,
       adicionarReceita,

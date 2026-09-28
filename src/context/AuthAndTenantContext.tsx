@@ -97,6 +97,7 @@ interface AuthAndTenantContextType {
   criarOrdemServico: (os: Omit<OrdemServicoOptica, 'id' | 'loja_id' | 'numero_os' | 'created_at'>) => OrdemServicoOptica;
   atualizarStatusOS: (osId: string, novoStatus: StatusOSOptica, montadorNome?: string) => void;
   adicionarProduto: (prod: Omit<Produto, 'id' | 'loja_id'>) => Produto;
+  adicionarLaboratorio: (lab: Omit<Laboratorio, 'id' | 'loja_id' | 'total_pedidos_ativos'>) => Laboratorio;
   adicionarFuncionario: (func: Omit<Funcionario, 'id' | 'loja_id'>) => Funcionario;
   atualizarFuncionario: (id: string, dados: Partial<Funcionario>) => void;
   toggleFuncionarioAtivo: (id: string) => void;
@@ -525,6 +526,17 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     return novoProduto;
   };
 
+  const adicionarLaboratorio = (labData: Omit<Laboratorio, 'id' | 'loja_id' | 'total_pedidos_ativos'>): Laboratorio => {
+    const novoLab: Laboratorio = {
+      ...labData,
+      id: `lab-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      total_pedidos_ativos: 0
+    };
+    setLaboratorios(prev => [novoLab, ...prev]);
+    return novoLab;
+  };
+
   const realizarVendaPDV = (vendaData: Omit<VendaPDV, 'id' | 'loja_id' | 'numero_venda' | 'data_venda'>): VendaPDV => {
     const proximaVenda = vendas.length > 0 
       ? Math.max(...vendas.map(v => v.numero_venda)) + 1 
@@ -638,6 +650,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       criarOrdemServico,
       atualizarStatusOS,
       adicionarProduto,
+      adicionarLaboratorio,
       adicionarFuncionario,
       atualizarFuncionario,
       toggleFuncionarioAtivo,

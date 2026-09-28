@@ -93,6 +93,7 @@ interface AuthAndTenantContextType {
   }) => string;
   
   adicionarCliente: (cliente: Omit<Cliente, 'id' | 'loja_id' | 'created_at'>) => Cliente;
+  atualizarCliente: (id: string, dados: Partial<Cliente>) => void;
   adicionarReceita: (receita: Omit<ReceitaOptica, 'id' | 'loja_id' | 'created_at'>) => ReceitaOptica;
   criarOrdemServico: (os: Omit<OrdemServicoOptica, 'id' | 'loja_id' | 'numero_os' | 'created_at'>) => OrdemServicoOptica;
   atualizarStatusOS: (osId: string, novoStatus: StatusOSOptica, montadorNome?: string) => void;
@@ -474,6 +475,15 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     return novoCliente;
   };
 
+  const atualizarCliente = (id: string, dados: Partial<Cliente>) => {
+    setClientes(prev => prev.map(c => {
+      if (c.id === id) {
+        return { ...c, ...dados };
+      }
+      return c;
+    }));
+  };
+
   const adicionarReceita = (receitaData: Omit<ReceitaOptica, 'id' | 'loja_id' | 'created_at'>): ReceitaOptica => {
     const novaReceita: ReceitaOptica = {
       ...receitaData,
@@ -646,6 +656,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       toggleEmissaoFiscalTenant,
       cadastrarNovaOtica,
       adicionarCliente,
+      atualizarCliente,
       adicionarReceita,
       criarOrdemServico,
       atualizarStatusOS,

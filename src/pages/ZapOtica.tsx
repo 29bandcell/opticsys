@@ -422,29 +422,39 @@ export const ZapOtica: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {receitasVencendo.map(rec => (
-                  <div key={rec.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-800 text-xs gap-2">
-                    <div>
-                      <strong className="text-slate-900 dark:text-zinc-100 font-bold block">{rec.cliente_nome}</strong>
-                      <p className="text-slate-500 text-[11px] mt-0.5">
-                        Última receita: {new Date(rec.data_emissao).toLocaleDateString('pt-BR')} • Prescritor: {rec.medico_prescritor || 'Dr. Oftalmologista'}
-                      </p>
-                    </div>
+                {receitasVencendo.map(rec => {
+                  const cliRec = clientes.find(c => c.id === rec.cliente_id || c.nome.toLowerCase() === rec.cliente_nome.toLowerCase());
+                  const foneDestino = cliRec?.whatsapp || cliRec?.telefone || 'Telefone não cadastrado';
 
-                    <button
-                      onClick={() => handleAbrirPreview(
-                        rec.cliente_nome,
-                        '(88) 98821-3940',
-                        'RETORNO_GRAU',
-                        `Olá, ${rec.cliente_nome}! Tudo bem? 😊\n\nJá faz quase 1 ano desde a sua última avaliação visual aqui na ${lojaAtiva.nome_fantasia}.\n\nCuidar da saúde dos olhos é fundamental para evitar fadiga ocular e dores de cabeça. Que tal agendar um retorno para checar seu grau?\n\nResponda esta mensagem para agendarmos o melhor horário para você!`
-                      )}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded flex items-center gap-1.5 shadow-xs transition-all active:scale-95 shrink-0"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Clicar para Enviar Convite</span>
-                    </button>
-                  </div>
-                ))}
+                  return (
+                    <div key={rec.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-800 text-xs gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-slate-900 dark:text-zinc-100 font-bold block">{rec.cliente_nome}</strong>
+                          <span className="text-[10px] text-slate-500 font-mono bg-slate-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {foneDestino}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-[11px] mt-0.5">
+                          Última receita: {new Date(rec.data_emissao).toLocaleDateString('pt-BR')} • Prescritor: {rec.medico_prescritor || 'Dr. Oftalmologista'}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleAbrirPreview(
+                          rec.cliente_nome,
+                          foneDestino,
+                          'RETORNO_GRAU',
+                          `Olá, ${rec.cliente_nome}! Tudo bem? 😊\n\nJá faz quase 1 ano desde a sua última avaliação visual aqui na ${lojaAtiva.nome_fantasia}.\n\nCuidar da saúde dos olhos é fundamental para evitar fadiga ocular e dores de cabeça. Que tal agendar um retorno para checar seu grau?\n\nResponda esta mensagem para agendarmos o melhor horário para você!`
+                        )}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded flex items-center gap-1.5 shadow-xs transition-all active:scale-95 shrink-0"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Clicar para Enviar Convite</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -462,29 +472,39 @@ export const ZapOtica: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {cobrancasPendentes.slice(0, 4).map(cob => (
-                  <div key={cob.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-800 text-xs gap-2">
-                    <div>
-                      <strong className="text-slate-900 dark:text-zinc-100 font-bold block">{cob.cliente_ou_fornecedor || 'Cliente'}</strong>
-                      <p className="text-slate-500 text-[11px] mt-0.5 font-mono">
-                        {cob.descricao} • Vencimento: {new Date(cob.data_vencimento).toLocaleDateString('pt-BR')} • <strong>R$ {cob.valor.toFixed(2)}</strong>
-                      </p>
-                    </div>
+                {cobrancasPendentes.slice(0, 4).map(cob => {
+                  const cliCob = clientes.find(c => c.nome.toLowerCase() === (cob.cliente_ou_fornecedor || '').toLowerCase());
+                  const foneDestino = cliCob?.whatsapp || cliCob?.telefone || 'Telefone não cadastrado';
 
-                    <button
-                      onClick={() => handleAbrirPreview(
-                        cob.cliente_ou_fornecedor || 'Cliente',
-                        '(88) 99742-1049',
-                        'COBRANCA',
-                        `Olá, ${cob.cliente_ou_fornecedor}! Esperamos que esteja tudo bem.\n\nPassando para lembrar do vencimento da sua parcela no valor de R$ ${cob.valor.toFixed(2)} referente à sua compra na ${lojaAtiva.nome_fantasia}.\n\n🔑 Chave PIX: ${lojaAtiva.cnpj || '49680752000130'}\n\nSe já efetuou o pagamento, favor desconsiderar este aviso!`
-                      )}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded flex items-center gap-1.5 shadow-xs transition-all active:scale-95 shrink-0"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Enviar Lembrete PIX</span>
-                    </button>
-                  </div>
-                ))}
+                  return (
+                    <div key={cob.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-800 text-xs gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-slate-900 dark:text-zinc-100 font-bold block">{cob.cliente_ou_fornecedor || 'Cliente'}</strong>
+                          <span className="text-[10px] text-slate-500 font-mono bg-slate-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {foneDestino}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-[11px] mt-0.5 font-mono">
+                          {cob.descricao} • Vencimento: {new Date(cob.data_vencimento).toLocaleDateString('pt-BR')} • <strong>R$ {cob.valor.toFixed(2)}</strong>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleAbrirPreview(
+                          cob.cliente_ou_fornecedor || 'Cliente',
+                          foneDestino,
+                          'COBRANCA',
+                          `Olá, ${cob.cliente_ou_fornecedor}! Esperamos que esteja tudo bem.\n\nPassando para lembrar do vencimento da sua parcela no valor de R$ ${cob.valor.toFixed(2)} referente à sua compra na ${lojaAtiva.nome_fantasia}.\n\n🔑 Chave PIX: ${lojaAtiva.cnpj || '49680752000130'}\n\nSe já efetuou o pagamento, favor desconsiderar este aviso!`
+                        )}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded flex items-center gap-1.5 shadow-xs transition-all active:scale-95 shrink-0"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Enviar Lembrete PIX</span>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

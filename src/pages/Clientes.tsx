@@ -9,20 +9,27 @@ import {
   FileText, 
   ShoppingBag,
   ExternalLink,
-  Plus
+  Plus,
+  Edit2,
+  Check,
+  X,
+  Calendar,
+  MapPin
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { Cliente } from '../types';
 import { Badge } from '../components/common/Badge';
 
 export const Clientes: React.FC = () => {
-  const { clientes, adicionarCliente, receitas, ordensServico } = useAuthAndTenant();
+  const { clientes, adicionarCliente, atualizarCliente, receitas, ordensServico } = useAuthAndTenant();
   
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [clienteParaEditar, setClienteParaEditar] = useState<Cliente | null>(null);
 
-  // Form State
+  // Form State para Novo Cliente
   const [novoCliente, setNovoCliente] = useState({
     nome: '',
     cpf: '',
@@ -33,25 +40,45 @@ export const Clientes: React.FC = () => {
     cep: '',
     endereco: '',
     cidade: '',
-    uf: 'SP',
+    uf: 'CE',
+    origem: 'BALCÃO',
+    observacoes: ''
+  });
+
+  // Form State para Edição
+  const [editForm, setEditForm] = useState({
+    nome: '',
+    cpf: '',
+    data_nascimento: '',
+    telefone: '',
+    whatsapp: '',
+    email: '',
+    cep: '',
+    endereco: '',
+    cidade: '',
+    uf: 'CE',
     origem: 'BALCÃO',
     observacoes: ''
   });
 
   const clientesFiltrados = clientes.filter(c => 
     c.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    c.cpf.includes(busca) ||
-    c.telefone.includes(busca)
+    (c.cpf && c.cpf.includes(busca)) ||
+    (c.telefone && c.telefone.includes(busca)) ||
+    (c.whatsapp && c.whatsapp.includes(busca))
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmitNovo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoCliente.nome || !novoCliente.telefone) {
       alert('Nome e Telefone são obrigatórios.');
       return;
     }
 
-    const created = adicionarCliente(novoCliente);
+    const created = adicionarCliente({
+      ...novoCliente,
+      whatsapp: novoCliente.whatsapp || novoCliente.telefone
+    });
     setIsModalOpen(false);
     setNovoCliente({
       nome: '',
@@ -63,11 +90,51 @@ export const Clientes: React.FC = () => {
       cep: '',
       endereco: '',
       cidade: '',
-      uf: 'SP',
+      uf: 'CE',
       origem: 'BALCÃO',
       observacoes: ''
     });
     setClienteSelecionado(created);
+  };
+
+  const handleAbrirEditar = (cli: Cliente) => {
+    setClienteParaEditar(cli);
+    setEditForm({
+      nome: cli.nome || '',
+      cpf: cli.cpf || '',
+      data_nascimento: cli.data_nascimento || '',
+      telefone: cli.telefone || '',
+      whatsapp: cli.whatsapp || cli.telefone || '',
+      email: cli.email || '',
+      cep: cli.cep || '',
+      endereco: cli.endereco || '',
+      cidade: cli.cidade || '',
+      uf: cli.uf || 'CE',
+      origem: cli.origem || 'BALCÃO',
+      observacoes: cli.observacoes || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSalvarEdicao = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clienteParaEditar) return;
+    if (!editForm.nome.trim() || !editForm.telefone.trim()) {
+      alert('Nome e Telefone são obrigatórios.');
+      return;
+    }
+
+    const dadosAtualizados = {
+      ...editForm,
+      whatsapp: editForm.whatsapp || editForm.telefone
+    };
+
+    atualizarCliente(clienteParaEditar.id, dadosAtualizados);
+
+    // Atualiza o cliente selecionado na visualização
+    setClienteSelecionado(prev => prev && prev.id === clienteParaEditar.id ? { ...prev, ...dadosAtualizados } : prev);
+    setIsEditModalOpen(false);
+    setClienteParaEditar(null);
   };
 
   return (
@@ -115,7 +182,7 @@ export const Clientes: React.FC = () => {
                 <tr>
                   <th className="py-2.5 px-3">Nome / Paciente</th>
                   <th className="py-2.5 px-3">CPF</th>
-                  <th className="py-2.5 px-3">Telefone</th>
+                  <th className="py-2.5 px-3">WhatsApp / Telefone</th>
                   <th className="py-2.5 px-3">Origem</th>
                   <th className="py-2.5 px-3 text-center">Ações</th>
                 </tr>
@@ -123,8 +190,6 @@ export const Clientes: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
                 {clientesFiltrados.map(cli => {
                   const isSelected = clienteSelecionado?.id === cli.id;
-                  const receitasCount = receitas.filter(r => r.cliente_id === cli.id).length;
-                  const osCount = ordensServico.filter(o => o.cliente_id === cli.id).length;
 
                   return (
                     <tr 
@@ -148,19 +213,39 @@ export const Clientes: React.FC = () => {
                         {cli.cpf || 'Não informado'}
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-600 dark:text-zinc-400">
-                        {cli.telefone}
+                        {cli.whatsapp || cli.telefone}
                       </td>
                       <td className="py-3 px-3">
                         <Badge variant="default">{cli.origem || 'BALCÃO'}</Badge>
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className="text-[11px] font-semibold text-blue-600 hover:underline">
-                          Ver Ficha
-                        </span>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAbrirEditar(cli);
+                            }}
+                            className="p-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded transition-colors"
+                            title="Editar dados do cliente"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[11px] font-semibold text-blue-600 hover:underline">
+                            Ver Ficha
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
+                {clientesFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      Nenhum paciente encontrado. Clique em <strong>"Cadastrar Novo Paciente"</strong> para iniciar.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -171,20 +256,31 @@ export const Clientes: React.FC = () => {
         <div className="bg-white dark:bg-[#101014] border border-slate-200 dark:border-zinc-800 rounded-lg p-5 shadow-sm space-y-4">
           {clienteSelecionado ? (
             <div className="space-y-4">
-              <div className="border-b border-slate-200 dark:border-zinc-800 pb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ficha do Paciente</span>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-zinc-100 mt-0.5">
-                  {clienteSelecionado.nome}
-                </h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  CPF: {clienteSelecionado.cpf || 'N/A'}
-                </p>
+              <div className="border-b border-slate-200 dark:border-zinc-800 pb-3 flex justify-between items-start">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ficha do Paciente</span>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-zinc-100 mt-0.5">
+                    {clienteSelecionado.nome}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    CPF: {clienteSelecionado.cpf || 'Não informado'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAbrirEditar(clienteSelecionado)}
+                  className="neo-button-secondary !py-1 !px-2.5 text-xs flex items-center gap-1 font-bold text-blue-600"
+                >
+                  <Edit2 className="w-3.5 h-3.5" /> Editar
+                </button>
               </div>
 
               <div className="space-y-2 text-xs">
                 <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
-                  <Phone className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{clienteSelecionado.telefone}</span>
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="font-mono font-bold text-slate-800 dark:text-zinc-200">
+                    {clienteSelecionado.whatsapp || clienteSelecionado.telefone}
+                  </span>
                 </div>
                 {clienteSelecionado.email && (
                   <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
@@ -192,10 +288,24 @@ export const Clientes: React.FC = () => {
                     <span>{clienteSelecionado.email}</span>
                   </div>
                 )}
-                {clienteSelecionado.endereco && (
-                  <p className="text-slate-600 dark:text-zinc-400">
-                    {clienteSelecionado.endereco} {clienteSelecionado.cidade && `- ${clienteSelecionado.cidade}/${clienteSelecionado.uf}`}
-                  </p>
+                {clienteSelecionado.data_nascimento && (
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
+                    <Calendar className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Nascimento: {new Date(clienteSelecionado.data_nascimento).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )}
+                {(clienteSelecionado.endereco || clienteSelecionado.cidade) && (
+                  <div className="flex items-start gap-2 text-slate-600 dark:text-zinc-400">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                    <span>
+                      {clienteSelecionado.endereco} {clienteSelecionado.cidade && `- ${clienteSelecionado.cidade}/${clienteSelecionado.uf}`}
+                    </span>
+                  </div>
+                )}
+                {clienteSelecionado.observacoes && (
+                  <div className="p-2.5 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-100 dark:border-zinc-800 text-[11px] text-slate-600 dark:text-zinc-400 italic">
+                    "{clienteSelecionado.observacoes}"
+                  </div>
                 )}
               </div>
 
@@ -261,13 +371,20 @@ export const Clientes: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-[#121216] border border-slate-300 dark:border-zinc-700 rounded-lg shadow-2xl w-full max-w-lg p-6 space-y-4">
             
-            <div className="border-b border-slate-200 dark:border-zinc-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                Cadastrar Novo Cliente / Paciente
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-600" /> Cadastrar Novo Cliente / Paciente
               </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmitNovo} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Nome Completo *</label>
                 <input
@@ -292,14 +409,14 @@ export const Clientes: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Telefone / WhatsApp *</label>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">WhatsApp / Telefone *</label>
                   <input
                     type="text"
                     required
-                    placeholder="(11) 99999-9999"
+                    placeholder="(88) 98888-8888"
                     value={novoCliente.telefone}
-                    onChange={e => setNovoCliente({ ...novoCliente, telefone: e.target.value })}
-                    className="neo-input"
+                    onChange={e => setNovoCliente({ ...novoCliente, telefone: e.target.value, whatsapp: e.target.value })}
+                    className="neo-input font-mono"
                   />
                 </div>
               </div>
@@ -316,18 +433,52 @@ export const Clientes: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Origem do Cliente</label>
-                  <select
-                    value={novoCliente.origem}
-                    onChange={e => setNovoCliente({ ...novoCliente, origem: e.target.value })}
-                    className="neo-select"
-                  >
-                    <option value="BALCÃO">Balcão / Loja Física</option>
-                    <option value="INDICAÇÃO MÉDICA">Indicação Médica</option>
-                    <option value="INSTAGRAM">Instagram / Redes</option>
-                    <option value="CONVÊNIO">Convênio / Parceria</option>
-                  </select>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Data de Nascimento</label>
+                  <input
+                    type="date"
+                    value={novoCliente.data_nascimento}
+                    onChange={e => setNovoCliente({ ...novoCliente, data_nascimento: e.target.value })}
+                    className="neo-input font-mono"
+                  />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Cidade</label>
+                  <input
+                    type="text"
+                    placeholder="Morada Nova"
+                    value={novoCliente.cidade}
+                    onChange={e => setNovoCliente({ ...novoCliente, cidade: e.target.value })}
+                    className="neo-input"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">UF</label>
+                  <input
+                    type="text"
+                    maxLength={2}
+                    placeholder="CE"
+                    value={novoCliente.uf}
+                    onChange={e => setNovoCliente({ ...novoCliente, uf: e.target.value.toUpperCase() })}
+                    className="neo-input uppercase text-center font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Origem do Cliente</label>
+                <select
+                  value={novoCliente.origem}
+                  onChange={e => setNovoCliente({ ...novoCliente, origem: e.target.value })}
+                  className="neo-select"
+                >
+                  <option value="BALCÃO">Balcão / Loja Física</option>
+                  <option value="INDICAÇÃO MÉDICA">Indicação Médica</option>
+                  <option value="INSTAGRAM">Instagram / Redes</option>
+                  <option value="CONVÊNIO">Convênio / Parceria</option>
+                </select>
               </div>
 
               <div>
@@ -354,6 +505,149 @@ export const Clientes: React.FC = () => {
                   className="neo-button-primary"
                 >
                   Salvar Paciente
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Paciente */}
+      {isEditModalOpen && clienteParaEditar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#121216] border border-slate-300 dark:border-zinc-700 rounded-lg shadow-2xl w-full max-w-lg p-6 space-y-4">
+            
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-blue-600" /> Editar Dados do Cliente
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarEdicao} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Nome Completo *</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.nome}
+                  onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
+                  className="neo-input font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">CPF</label>
+                  <input
+                    type="text"
+                    placeholder="000.000.000-00"
+                    value={editForm.cpf}
+                    onChange={e => setEditForm({ ...editForm, cpf: e.target.value })}
+                    className="neo-input font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">WhatsApp / Telefone *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="(88) 98888-8888"
+                    value={editForm.telefone}
+                    onChange={e => setEditForm({ ...editForm, telefone: e.target.value, whatsapp: e.target.value })}
+                    className="neo-input font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                    className="neo-input"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Data de Nascimento</label>
+                  <input
+                    type="date"
+                    value={editForm.data_nascimento}
+                    onChange={e => setEditForm({ ...editForm, data_nascimento: e.target.value })}
+                    className="neo-input font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Endereço / Cidade</label>
+                  <input
+                    type="text"
+                    placeholder="Rua, Número, Bairro, Cidade"
+                    value={editForm.endereco}
+                    onChange={e => setEditForm({ ...editForm, endereco: e.target.value })}
+                    className="neo-input"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">UF</label>
+                  <input
+                    type="text"
+                    maxLength={2}
+                    value={editForm.uf}
+                    onChange={e => setEditForm({ ...editForm, uf: e.target.value.toUpperCase() })}
+                    className="neo-input uppercase text-center font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Origem do Cliente</label>
+                <select
+                  value={editForm.origem}
+                  onChange={e => setEditForm({ ...editForm, origem: e.target.value })}
+                  className="neo-select"
+                >
+                  <option value="BALCÃO">Balcão / Loja Física</option>
+                  <option value="INDICAÇÃO MÉDICA">Indicação Médica</option>
+                  <option value="INSTAGRAM">Instagram / Redes</option>
+                  <option value="CONVÊNIO">Convênio / Parceria</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Observações do Paciente</label>
+                <textarea
+                  rows={2}
+                  value={editForm.observacoes}
+                  onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })}
+                  className="neo-input"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="neo-button-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="neo-button-primary flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" /> Atualizar Dados
                 </button>
               </div>
             </form>

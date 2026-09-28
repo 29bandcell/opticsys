@@ -161,7 +161,7 @@ export const evolutionService = {
   },
 
   /**
-   * Dispara mensagem de texto via Evolution API
+   * Dispara mensagem de texto via Evolution API com fallback inteligente para instâncias conectadas
    */
   async enviarMensagemTexto(instanceName: string, telefone: string, texto: string, apiKey?: string): Promise<boolean> {
     const key = apiKey || EVOLUTION_CONFIG.GLOBAL_API_KEY;
@@ -169,31 +169,69 @@ export const evolutionService = {
     const numeroLimpo = telefone.replace(/\D/g, '');
     const numeroCompleto = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
 
+    const tentarEnvio = async (inst: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`${url}/message/sendText/${inst}`, {
+          method: 'POST',
+          headers: {
+            'apikey': key,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            number: numeroCompleto,
+            text: texto,
+            options: {
+              delay: 500,
+              presence: 'composing'
+            },
+            textMessage: {
+              text: texto
+            }
+          })
+        });
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
     try {
-      const res = await fetch(`${url}/message/sendText/${instanceName}`, {
-        method: 'POST',
+      // 1. Tenta enviar pela instância solicitada
+      if (instanceName) {
+        const ok = await tentarEnvio(instanceName);
+        if (ok) return true;
+      }
+
+      // 2. Se falhar, busca instâncias ativas/conectadas no servidor
+      const fetchRes = await fetch(`${url}/instance/fetchInstances`, {
+        method: 'GET',
         headers: {
           'apikey': key,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          number: numeroCompleto,
-          text: texto,
-          options: {
-            delay: 1200,
-            presence: 'composing'
-          },
-          textMessage: {
-            text: texto
-          }
-        })
+        }
       });
 
-      return res.ok;
+      if (fetchRes.ok) {
+        const instances = await fetchRes.json();
+        if (Array.isArray(instances)) {
+          const openInstances = instances.filter((i: any) => 
+            i.connectionStatus === 'open' || i.instance?.state === 'open' || i.status === 'open'
+          );
+
+          for (const instObj of openInstances) {
+            const name = instObj.name || instObj.instance?.instanceName;
+            if (name && name !== instanceName) {
+              const ok = await tentarEnvio(name);
+              if (ok) return true;
+            }
+          }
+        }
+      }
     } catch (err) {
       console.warn('Erro ao disparar mensagem via API:', err);
-      return false;
     }
+
+    return false;
   },
 
   /**

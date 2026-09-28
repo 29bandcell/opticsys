@@ -48,6 +48,7 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   const [etapaRecuperacao, setEtapaRecuperacao] = useState<EtapaRecuperacao>('IDENTIFICACAO');
   
   const [identificadorRecuperar, setIdentificadorRecuperar] = useState('');
+  const [whatsappRecuperar, setWhatsappRecuperar] = useState('');
   const [canalEnvio, setCanalEnvio] = useState<'WHATSAPP' | 'EMAIL'>('WHATSAPP');
   const [codigoGerado, setCodigoGerado] = useState<string>('');
   const [codigoDigitado, setCodigoDigitado] = useState<string[]>(['', '', '', '', '', '']);
@@ -146,7 +147,23 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   const handleAbrirEsqueciSenha = () => {
     setShowModalRecuperar(true);
     setEtapaRecuperacao('IDENTIFICACAO');
-    setIdentificadorRecuperar(emailLogin || '');
+    const emailInicial = emailLogin || '';
+    setIdentificadorRecuperar(emailInicial);
+
+    const identLimpo = emailInicial.trim().toLowerCase();
+    const identDigitos = identLimpo.replace(/\D/g, '');
+    const func = funcionarios.find(f => 
+      f.email.toLowerCase() === identLimpo || 
+      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos)
+    );
+    const loja = lojas.find(l => 
+      l.email.toLowerCase() === identLimpo || 
+      (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos)
+    );
+
+    const foneEncontrado = func?.telefone || loja?.telefone || (identDigitos.length >= 10 ? identDigitos : '');
+    setWhatsappRecuperar(foneEncontrado);
+
     setErroRecuperacao(null);
     setCodigoDigitado(['', '', '', '', '', '']);
     setNovaSenha('');
@@ -157,7 +174,13 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   const handleEnviarCodigoRecuperacao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identificadorRecuperar.trim()) {
-      setErroRecuperacao('Informe o e-mail ou telefone cadastrado da clínica.');
+      setErroRecuperacao('Informe o e-mail cadastrado da sua conta.');
+      return;
+    }
+
+    const telFinal = (whatsappRecuperar || identificadorRecuperar).replace(/\D/g, '');
+    if (canalEnvio === 'WHATSAPP' && telFinal.length < 10) {
+      setErroRecuperacao('Por favor, informe seu número de WhatsApp com DDD para envio do código.');
       return;
     }
 
@@ -168,33 +191,15 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
     const codigoAleatorio = Math.floor(100000 + Math.random() * 900000).toString();
     setCodigoGerado(codigoAleatorio);
 
-    const identLimpo = identificadorRecuperar.trim().toLowerCase();
-    const identDigitos = identLimpo.replace(/\D/g, '');
-
-    // Localiza funcionário ou loja para saber o telefone de destino
-    const func = funcionarios.find(f => 
-      f.email.toLowerCase() === identLimpo || 
-      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos)
-    );
-    const loja = lojas.find(l => 
-      l.email.toLowerCase() === identLimpo || 
-      (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos)
-    );
-
-    const telefoneDestino = func?.telefone || loja?.telefone || (identDigitos.length >= 10 ? identDigitos : '');
     const mensagemTexto = `🔒 *CÓDIGO DE RECUPERAÇÃO - OPTICSYS CLOUD*\n\nVocê solicitou a redefinição de senha para sua clínica.\n\nSeu código de segurança é: *${codigoAleatorio}*\n\n⏱️ Este código expira em 10 minutos. Se você não solicitou, desconsidere esta mensagem.`;
 
     try {
-      if (canalEnvio === 'WHATSAPP' && telefoneDestino) {
-        const telLimpo = telefoneDestino.replace(/\D/g, '');
-        if (telLimpo.length >= 10) {
-          const instName = loja ? `opticsys_${loja.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}` : 'opticsys_matriz_centro';
-          await evolutionService.enviarMensagemTexto(
-            instName,
-            telLimpo,
-            mensagemTexto
-          );
-        }
+      if (canalEnvio === 'WHATSAPP' && telFinal) {
+        await evolutionService.enviarMensagemTexto(
+          'opticsys-cloud-master',
+          telFinal,
+          mensagemTexto
+        );
       }
     } catch (err) {
       console.warn('Envio OTP WhatsApp:', err);
@@ -203,10 +208,10 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
     setIsEnviandoCodigo(false);
     setEtapaRecuperacao('CODIGO_OTP');
     const canalInfo = canalEnvio === 'WHATSAPP' 
-      ? (telefoneDestino ? `WhatsApp (${telefoneDestino})` : 'WhatsApp') 
-      : 'E-mail';
-    setSucessoAlerta(`Código de 6 dígitos enviado com sucesso para seu ${canalInfo}!`);
-    setTimeout(() => setSucessoAlerta(null), 5000);
+      ? `WhatsApp (${telFinal})` 
+      : `E-mail (${identificadorRecuperar})`;
+    setSucessoAlerta(`Código de 6 dígitos disparado com sucesso para ${canalInfo}!`);
+    setTimeout(() => setSucessoAlerta(null), 6000);
   };
 
   // Passo 2: Validar Código Digitado
@@ -519,19 +524,28 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
               <form onSubmit={handleEnviarCodigoRecuperacao} className="p-6 space-y-4">
                 
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  Informe o e-mail ou o número de WhatsApp cadastrado na sua clínica para enviarmos um <strong>código de verificação temporário de 6 dígitos</strong>.
+                  Informe o seu e-mail e o número de WhatsApp para enviarmos instantaneamente o <strong>código de verificação de 6 dígitos</strong>.
                 </p>
 
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">
-                    E-mail ou WhatsApp Cadastrado:
+                    E-mail ou Login de Acesso:
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: contato@otica.com.br ou (88) 99876-5432"
+                    placeholder="Ex: seuemail@otica.com.br"
                     value={identificadorRecuperar}
-                    onChange={e => setIdentificadorRecuperar(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setIdentificadorRecuperar(val);
+                      const ident = val.trim().toLowerCase();
+                      const f = funcionarios.find(x => x.email.toLowerCase() === ident);
+                      const l = lojas.find(x => x.email.toLowerCase() === ident);
+                      if (f?.telefone || l?.telefone) {
+                        setWhatsappRecuperar(f?.telefone || l?.telefone || '');
+                      }
+                    }}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-[#0099FF]"
                   />
                 </div>
@@ -576,6 +590,28 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
                   </div>
                 </div>
 
+                {canalEnvio === 'WHATSAPP' && (
+                  <div>
+                    <label className="block font-bold text-slate-300 mb-1 text-[11px]">
+                      WhatsApp para Receber o Código (com DDD):
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-2.5 text-emerald-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: (88) 99876-5432"
+                        value={whatsappRecuperar}
+                        onChange={e => setWhatsappRecuperar(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      O robô de segurança enviará a mensagem instantaneamente no WhatsApp informado.
+                    </p>
+                  </div>
+                )}
+
                 <div className="pt-2 flex items-center justify-between">
                   <button
                     type="button"
@@ -588,14 +624,14 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
                   <button
                     type="submit"
                     disabled={isEnviandoCodigo}
-                    className="bg-[#0099FF] hover:bg-[#0088EE] text-white font-bold text-xs px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm"
                   >
                     {isEnviandoCodigo ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
                     ) : (
                       <Send className="w-4 h-4" />
                     )}
-                    <span>{isEnviandoCodigo ? 'Enviando...' : 'Enviar Código Seguro'}</span>
+                    <span>{isEnviandoCodigo ? 'Disparando no WhatsApp...' : 'Enviar Código Seguro'}</span>
                   </button>
                 </div>
 
@@ -612,8 +648,9 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
                   <p className="text-slate-300 text-xs">
                     Insira o código de 6 dígitos que enviamos para seu <strong>{canalEnvio === 'WHATSAPP' ? 'WhatsApp' : 'E-mail'}</strong>:
                   </p>
-                  <p className="text-[11px] text-slate-500 font-mono">
-                    {identificadorRecuperar}
+                  <p className="text-xs text-emerald-400 font-mono font-bold flex items-center justify-center gap-1">
+                    {canalEnvio === 'WHATSAPP' && <Phone className="w-3.5 h-3.5" />}
+                    <span>{whatsappRecuperar || identificadorRecuperar}</span>
                   </p>
                 </div>
 

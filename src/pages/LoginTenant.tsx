@@ -14,7 +14,8 @@ import {
   Eye, 
   EyeOff,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Send
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { evolutionService } from '../services/evolutionApi';
@@ -32,7 +33,7 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   onGoToLanding,
   onGoToRegister
 }) => {
-  const { lojas, setLojaAtiva, funcionarios, usuarioAtual, setUsuarioAtual } = useAuthAndTenant();
+  const { lojas, setLojaAtiva, funcionarios, usuarioAtual, setUsuarioAtual, atualizarFuncionario } = useAuthAndTenant();
 
   // Estados do Formulário de Login
   const [emailLogin, setEmailLogin] = useState('');
@@ -167,26 +168,44 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
     const codigoAleatorio = Math.floor(100000 + Math.random() * 900000).toString();
     setCodigoGerado(codigoAleatorio);
 
+    const identLimpo = identificadorRecuperar.trim().toLowerCase();
+    const identDigitos = identLimpo.replace(/\D/g, '');
+
+    // Localiza funcionário ou loja para saber o telefone de destino
+    const func = funcionarios.find(f => 
+      f.email.toLowerCase() === identLimpo || 
+      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos)
+    );
+    const loja = lojas.find(l => 
+      l.email.toLowerCase() === identLimpo || 
+      (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos)
+    );
+
+    const telefoneDestino = func?.telefone || loja?.telefone || (identDigitos.length >= 10 ? identDigitos : '');
     const mensagemTexto = `🔒 *CÓDIGO DE RECUPERAÇÃO - OPTICSYS CLOUD*\n\nVocê solicitou a redefinição de senha para sua clínica.\n\nSeu código de segurança é: *${codigoAleatorio}*\n\n⏱️ Este código expira em 10 minutos. Se você não solicitou, desconsidere esta mensagem.`;
 
     try {
-      if (canalEnvio === 'WHATSAPP') {
-        const telLimpo = identificadorRecuperar.replace(/\D/g, '');
+      if (canalEnvio === 'WHATSAPP' && telefoneDestino) {
+        const telLimpo = telefoneDestino.replace(/\D/g, '');
         if (telLimpo.length >= 10) {
+          const instName = loja ? `opticsys_${loja.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}` : 'opticsys_matriz_centro';
           await evolutionService.enviarMensagemTexto(
-            'opticsys_matriz_centro',
+            instName,
             telLimpo,
             mensagemTexto
           );
         }
       }
     } catch (err) {
-      console.warn('Simulação de envio OTP ativada:', err);
+      console.warn('Envio OTP WhatsApp:', err);
     }
 
     setIsEnviandoCodigo(false);
     setEtapaRecuperacao('CODIGO_OTP');
-    setSucessoAlerta(`Código de 6 dígitos enviado com sucesso via ${canalEnvio === 'WHATSAPP' ? 'WhatsApp' : 'E-mail'}!`);
+    const canalInfo = canalEnvio === 'WHATSAPP' 
+      ? (telefoneDestino ? `WhatsApp (${telefoneDestino})` : 'WhatsApp') 
+      : 'E-mail';
+    setSucessoAlerta(`Código de 6 dígitos enviado com sucesso para seu ${canalInfo}!`);
     setTimeout(() => setSucessoAlerta(null), 5000);
   };
 
@@ -224,9 +243,76 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
       return;
     }
 
+    const identLimpo = identificadorRecuperar.trim().toLowerCase();
+    const identDigitos = identLimpo.replace(/\D/g, '');
+
+    // 1. Procura o funcionário
+    const funcEncontrado = funcionarios.find(f => 
+      f.email.toLowerCase() === identLimpo || 
+      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos)
+    );
+
+    if (funcEncontrado) {
+      atualizarFuncionario(funcEncontrado.id, { senha: novaSenha });
+      setUsuarioAtual({ ...funcEncontrado, senha: novaSenha });
+      const funcsAtualizados = funcionarios.map(f => f.id === funcEncontrado.id ? { ...f, senha: novaSenha } : f);
+      localStorage.setItem('opticsys_funcionarios', JSON.stringify(funcsAtualizados));
+    } else {
+      const lojaEncontrada = lojas.find(l => 
+        l.email.toLowerCase() === identLimpo || 
+        (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos)
+      );
+      if (lojaEncontrada) {
+        const adminDaLoja = funcionarios.find(f => f.loja_id === lojaEncontrada.id && f.cargo === 'ADMIN') || funcionarios[0];
+        if (adminDaLoja) {
+          atualizarFuncionario(adminDaLoja.id, { senha: novaSenha });
+          setUsuarioAtual({ ...adminDaLoja, senha: novaSenha });
+          const funcsAtualizados = funcionarios.map(f => f.id === adminDaLoja.id ? { ...f, senha: novaSenha } : f);
+          localStorage.setItem('opticsys_funcionarios', JSON.stringify(funcsAtualizados));
+        }
+      }
+    }
+
     // Atualiza a senha no estado do login
     setSenhaLogin(novaSenha);
     setEtapaRecuperacao('CONCLUIDO');
+  };
+
+  // Concluir e entrar após redefinir senha
+  const handleEntrarAposRedefinicao = () => {
+    const identLimpo = identificadorRecuperar.trim().toLowerCase();
+    const identDigitos = identLimpo.replace(/\D/g, '');
+    const funcEncontrado = funcionarios.find(f => 
+      f.email.toLowerCase() === identLimpo || 
+      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos)
+    );
+
+    sessionStorage.setItem('opticsys_is_authenticated', 'true');
+
+    if (funcEncontrado) {
+      sessionStorage.setItem('opticsys_logged_user_id', funcEncontrado.id);
+      sessionStorage.setItem('opticsys_active_loja_id', funcEncontrado.loja_id);
+      setUsuarioAtual({ ...funcEncontrado, senha: novaSenha });
+      const lojaDoFunc = lojas.find(l => l.id === funcEncontrado.loja_id);
+      if (lojaDoFunc) setLojaAtiva(lojaDoFunc);
+    } else {
+      const lojaEncontrada = lojas.find(l => 
+        l.email.toLowerCase() === identLimpo || 
+        (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos)
+      );
+      if (lojaEncontrada) {
+        const adminDaLoja = funcionarios.find(f => f.loja_id === lojaEncontrada.id && f.cargo === 'ADMIN') || funcionarios[0];
+        if (adminDaLoja) {
+          sessionStorage.setItem('opticsys_logged_user_id', adminDaLoja.id);
+          sessionStorage.setItem('opticsys_active_loja_id', lojaEncontrada.id);
+          setUsuarioAtual({ ...adminDaLoja, senha: novaSenha });
+          setLojaAtiva(lojaEncontrada);
+        }
+      }
+    }
+
+    setShowModalRecuperar(false);
+    onSuccess();
   };
 
   // Tratar digitação dos 6 dígitos nos inputs
@@ -672,10 +758,7 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowModalRecuperar(false);
-                      onSuccess();
-                    }}
+                    onClick={handleEntrarAposRedefinicao}
                     className="w-full bg-[#0099FF] hover:bg-[#0088EE] text-white font-extrabold text-xs py-3 rounded-lg shadow-sm"
                   >
                     Entrar na Ótica Agora

@@ -42,6 +42,13 @@ export const ZapOtica: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<'DISPAROS' | 'CONEXAO_EVOLUTION' | 'LOGS'>('DISPAROS');
   const [tipoDisparo, setTipoDisparo] = useState<'OS_PRONTA' | 'RETORNO_GRAU' | 'COBRANCA' | 'ANIVERSARIO'>('OS_PRONTA');
   
+  // Função para obter o status de conexão inicial salvo no localStorage
+  const obterStatusInicial = (): 'DISCONNECTED' | 'CONNECTING' | 'QR_READY' | 'CONNECTED' => {
+    const salvo = localStorage.getItem(`opticsys_zap_status_${lojaAtiva.id}`);
+    if (salvo === 'CONNECTED') return 'CONNECTED';
+    return 'DISCONNECTED';
+  };
+
   // Função para obter o número de telefone da loja ativa ou persistido
   const obterNumeroInicial = () => {
     const salvo = localStorage.getItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`);
@@ -54,7 +61,7 @@ export const ZapOtica: React.FC = () => {
     server_url: EVOLUTION_CONFIG.BASE_URL,
     api_key: EVOLUTION_CONFIG.GLOBAL_API_KEY,
     instance_name: `opticsys_${lojaAtiva.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}`,
-    status: 'CONNECTED' as 'DISCONNECTED' | 'CONNECTING' | 'QR_READY' | 'CONNECTED',
+    status: obterStatusInicial(),
     numero_conectado: obterNumeroInicial(),
     bateria_nivel: 94
   });
@@ -69,9 +76,11 @@ export const ZapOtica: React.FC = () => {
   // Sincronizar número e verificar status na Evolution API
   useEffect(() => {
     const num = obterNumeroInicial();
+    const statusSalvo = obterStatusInicial();
     setEvolutionConfig(prev => ({
       ...prev,
       instance_name: `opticsys_${lojaAtiva.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}`,
+      status: statusSalvo,
       numero_conectado: num
     }));
     setNovoNumeroInput(num);
@@ -87,7 +96,14 @@ export const ZapOtica: React.FC = () => {
             status: 'CONNECTED',
             numero_conectado: numeroReal
           }));
+          localStorage.setItem(`opticsys_zap_status_${lojaAtiva.id}`, 'CONNECTED');
           localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, numeroReal);
+        } else if (res.status === 'DISCONNECTED') {
+          setEvolutionConfig(prev => ({
+            ...prev,
+            status: 'DISCONNECTED'
+          }));
+          localStorage.setItem(`opticsys_zap_status_${lojaAtiva.id}`, 'DISCONNECTED');
         }
       } catch (e) {
         // Silencioso se indisponível
@@ -175,9 +191,11 @@ export const ZapOtica: React.FC = () => {
           status: 'CONNECTED',
           numero_conectado: numeroReal
         }));
+        localStorage.setItem(`opticsys_zap_status_${lojaAtiva.id}`, 'CONNECTED');
         localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, numeroReal);
         setQrCodeData(null);
         setSucessoAlerta(`WhatsApp Conectado com Sucesso! (${numeroReal})`);
+        setTimeout(() => setSucessoAlerta(null), 5000);
       } else {
         setEvolutionConfig(prev => ({ ...prev, status: 'QR_READY' }));
         setQrCodeData(resp.qrCode);
@@ -197,6 +215,8 @@ export const ZapOtica: React.FC = () => {
       status: 'CONNECTED',
       numero_conectado: numeroReal
     }));
+    localStorage.setItem(`opticsys_zap_status_${lojaAtiva.id}`, 'CONNECTED');
+    localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, numeroReal);
     setQrCodeData(null);
     setSucessoAlerta(`WhatsApp Conectado com Sucesso! (${numeroReal})`);
     setTimeout(() => setSucessoAlerta(null), 5000);
@@ -217,13 +237,21 @@ export const ZapOtica: React.FC = () => {
 
   // Desconectar Instância
   const handleDesconectar = async () => {
-    await evolutionService.desconectar(evolutionConfig.instance_name);
+    try {
+      await evolutionService.desconectar(evolutionConfig.instance_name);
+    } catch (e) {
+      console.warn('Erro ao desconectar na Evolution API:', e);
+    }
     setEvolutionConfig(prev => ({
       ...prev,
       status: 'DISCONNECTED',
       numero_conectado: ''
     }));
+    localStorage.setItem(`opticsys_zap_status_${lojaAtiva.id}`, 'DISCONNECTED');
+    localStorage.removeItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`);
     setQrCodeData(null);
+    setSucessoAlerta('WhatsApp Desconectado com sucesso!');
+    setTimeout(() => setSucessoAlerta(null), 4000);
   };
 
   // Abrir Modal de Preview com 1 clique

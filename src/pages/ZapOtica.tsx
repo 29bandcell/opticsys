@@ -23,7 +23,7 @@ import {
   Check
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
-import { evolutionService } from '../services/evolutionApi';
+import { evolutionService, formatarTelefoneBr } from '../services/evolutionApi';
 import { EVOLUTION_CONFIG } from '../config/evolution';
 
 interface MensagemLog {
@@ -42,19 +42,59 @@ export const ZapOtica: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<'DISPAROS' | 'CONEXAO_EVOLUTION' | 'LOGS'>('DISPAROS');
   const [tipoDisparo, setTipoDisparo] = useState<'OS_PRONTA' | 'RETORNO_GRAU' | 'COBRANCA' | 'ANIVERSARIO'>('OS_PRONTA');
   
+  // Função para obter o número de telefone da loja ativa ou persistido
+  const obterNumeroInicial = () => {
+    const salvo = localStorage.getItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`);
+    if (salvo) return salvo;
+    return formatarTelefoneBr(lojaAtiva.telefone) || '+55 (88) 98882-2847';
+  };
+
   // Estado da Conexão com a Evolution API
   const [evolutionConfig, setEvolutionConfig] = useState({
     server_url: EVOLUTION_CONFIG.BASE_URL,
     api_key: EVOLUTION_CONFIG.GLOBAL_API_KEY,
     instance_name: `opticsys_${lojaAtiva.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}`,
     status: 'CONNECTED' as 'DISCONNECTED' | 'CONNECTING' | 'QR_READY' | 'CONNECTED',
-    numero_conectado: '+55 (88) 99876-5432',
+    numero_conectado: obterNumeroInicial(),
     bateria_nivel: 94
   });
+
+  const [editandoNumero, setEditandoNumero] = useState(false);
+  const [novoNumeroInput, setNovoNumeroInput] = useState(obterNumeroInicial());
 
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [isGerandoQR, setIsGerandoQR] = useState(false);
   const [copiado, setCopiado] = useState(false);
+
+  // Sincronizar número e verificar status na Evolution API
+  useEffect(() => {
+    const num = obterNumeroInicial();
+    setEvolutionConfig(prev => ({
+      ...prev,
+      instance_name: `opticsys_${lojaAtiva.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}`,
+      numero_conectado: num
+    }));
+    setNovoNumeroInput(num);
+
+    const checarStatus = async () => {
+      try {
+        const instName = `opticsys_${lojaAtiva.nome_fantasia.toLowerCase().replace(/\s+/g, '_')}`;
+        const res = await evolutionService.checarStatusConexao(instName);
+        if (res.status === 'CONNECTED') {
+          const numeroReal = res.numero || num;
+          setEvolutionConfig(prev => ({
+            ...prev,
+            status: 'CONNECTED',
+            numero_conectado: numeroReal
+          }));
+          localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, numeroReal);
+        }
+      } catch (e) {
+        // Silencioso se indisponível
+      }
+    };
+    checarStatus();
+  }, [lojaAtiva]);
 
   // Modal de Confirmação "Clicar para Enviar"
   const [modalPreview, setModalPreview] = useState<{
@@ -129,13 +169,15 @@ export const ZapOtica: React.FC = () => {
       const resp = await evolutionService.conectarOuGerarQR(evolutionConfig.instance_name);
       setIsGerandoQR(false);
       if (resp.status === 'CONNECTED') {
+        const numeroReal = resp.numero || obterNumeroInicial();
         setEvolutionConfig(prev => ({
           ...prev,
           status: 'CONNECTED',
-          numero_conectado: '+55 (88) 99876-5432'
+          numero_conectado: numeroReal
         }));
+        localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, numeroReal);
         setQrCodeData(null);
-        setSucessoAlerta('WhatsApp Conectado com Sucesso!');
+        setSucessoAlerta(`WhatsApp Conectado com Sucesso! (${numeroReal})`);
       } else {
         setEvolutionConfig(prev => ({ ...prev, status: 'QR_READY' }));
         setQrCodeData(resp.qrCode);
@@ -149,14 +191,28 @@ export const ZapOtica: React.FC = () => {
 
   // Simular Conexão bem-sucedida após leitura do QR
   const handleSimularLeituraQR = () => {
+    const numeroReal = obterNumeroInicial();
     setEvolutionConfig(prev => ({
       ...prev,
       status: 'CONNECTED',
-      numero_conectado: '+55 (88) 99876-5432'
+      numero_conectado: numeroReal
     }));
     setQrCodeData(null);
-    setSucessoAlerta('WhatsApp Conectado com Sucesso!');
+    setSucessoAlerta(`WhatsApp Conectado com Sucesso! (${numeroReal})`);
     setTimeout(() => setSucessoAlerta(null), 5000);
+  };
+
+  // Salvar customização manual do número conectado
+  const handleSalvarNumeroConectado = (novoNum: string) => {
+    const formatado = formatarTelefoneBr(novoNum);
+    setEvolutionConfig(prev => ({
+      ...prev,
+      numero_conectado: formatado
+    }));
+    localStorage.setItem(`opticsys_zap_connected_phone_${lojaAtiva.id}`, formatado);
+    setEditandoNumero(false);
+    setSucessoAlerta(`Número conectado atualizado para ${formatado}`);
+    setTimeout(() => setSucessoAlerta(null), 4000);
   };
 
   // Desconectar Instância
@@ -783,13 +839,64 @@ export const ZapOtica: React.FC = () => {
               <div className="md:col-span-5 bg-slate-50 dark:bg-zinc-900/60 p-5 rounded-lg border border-slate-200 dark:border-zinc-800 text-center space-y-3">
                 
                 {evolutionConfig.status === 'CONNECTED' ? (
-                  <div className="py-6 space-y-2">
+                  <div className="py-6 space-y-3">
                     <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                       <CheckCircle2 className="w-8 h-8" />
                     </div>
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">WhatsApp Conectado!</h4>
-                    <p className="text-xs text-slate-500 font-mono">{evolutionConfig.numero_conectado}</p>
-                    <p className="text-[11px] text-slate-400">Pronto para realizar disparos com 1 clique direto no navegador.</p>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">WhatsApp Conectado!</h4>
+                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-1">
+                        {evolutionConfig.numero_conectado}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+                        Pronto para realizar disparos com 1 clique direto no sistema.
+                      </p>
+                    </div>
+
+                    {/* Editar número vinculado */}
+                    {editandoNumero ? (
+                      <div className="pt-2 flex flex-col gap-2 max-w-xs mx-auto text-left bg-white dark:bg-zinc-800 p-3 rounded-lg border border-slate-200 dark:border-zinc-700">
+                        <label className="text-[10px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                          Número Real Conectado:
+                        </label>
+                        <input
+                          type="text"
+                          value={novoNumeroInput}
+                          onChange={(e) => setNovoNumeroInput(e.target.value)}
+                          placeholder="Ex: (88) 98888-8888"
+                          className="w-full text-xs p-2 rounded border border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 font-mono text-slate-900 dark:text-zinc-100"
+                        />
+                        <div className="flex gap-2 justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditandoNumero(false)}
+                            className="px-2.5 py-1 text-[11px] rounded border border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-300"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSalvarNumeroConectado(novoNumeroInput)}
+                            className="px-3 py-1 text-[11px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-500 shadow-xs"
+                          >
+                            Salvar Número
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNovoNumeroInput(evolutionConfig.numero_conectado);
+                            setEditandoNumero(true);
+                          }}
+                          className="text-[11px] text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 underline flex items-center justify-center gap-1 mx-auto"
+                        >
+                          <Settings className="w-3 h-3" /> Alterar número exibido
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : qrCodeData ? (
                   <div className="space-y-3">

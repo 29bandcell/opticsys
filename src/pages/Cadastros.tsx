@@ -73,84 +73,39 @@ export const Cadastros: React.FC = () => {
   const [alertaZapSucesso, setAlertaZapSucesso] = useState<string | null>(null);
 
   // Estados locais para Fornecedores
-  const [fornecedores, setFornecedores] = useState([
-    {
-      id: 'forn-01',
-      nome_fantasia: 'Essilor Brasil / Varilux',
-      razao_social: 'Essilor da Amazônia Indústria e Comércio Ltda',
-      cnpj: '01.234.567/0001-89',
-      telefone: '(11) 3003-8899',
-      email: 'pedidos@essilorlab.com.br',
-      is_laboratorio: true
-    },
-    {
-      id: 'forn-02',
-      nome_fantasia: 'Carl Zeiss Vision Brasil',
-      razao_social: 'Zeiss Soluções Ópticas do Brasil S.A.',
-      cnpj: '12.345.678/0001-90',
-      telefone: '(11) 4004-7766',
-      email: 'lab.brasil@zeiss.com',
-      is_laboratorio: true
-    },
-    {
-      id: 'forn-03',
-      nome_fantasia: 'Luxottica Brasil (Ray-Ban / Oakley)',
-      razao_social: 'Luxottica do Brasil Gestão de Marcas Ltda',
-      cnpj: '23.456.789/0001-01',
-      telefone: '(11) 2198-1000',
-      email: 'pedidos@luxottica.com.br',
-      is_laboratorio: false
-    },
-    {
-      id: 'forn-04',
-      nome_fantasia: 'Sáfilo do Brasil (Carrera / Tommy)',
-      razao_social: 'Sáfilo Comércio de Armações do Brasil',
-      cnpj: '34.567.890/0001-12',
-      telefone: '(11) 3897-4400',
-      email: 'contato@safilo.com.br',
-      is_laboratorio: false
-    }
-  ]);
+  const [fornecedores, setFornecedores] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_fornecedores');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Estados locais para Médicos Prescritores
-  const [medicos, setMedicos] = useState([
-    {
-      id: 'med-01',
-      nome: 'Dr. Fernando Arantes',
-      registro: 'CRM-CE 145.892',
-      tipo: 'OFTALMOLOGISTA',
-      especialidade: 'Córnea, Refrativa e Lentes de Contato',
-      telefone: '(88) 3214-5566',
-      consultorio: 'Clínica Oftalmo Morada Nova'
-    },
-    {
-      id: 'med-02',
-      nome: 'Dra. Vanessa Lima',
-      registro: 'CROO-CE 0841',
-      tipo: 'OPTOMETRISTA',
-      especialidade: 'Optometria Clínica e Refração',
-      telefone: '(88) 98765-1122',
-      consultorio: 'Gabinete Óptico Visão Prime'
-    },
-    {
-      id: 'med-03',
-      nome: 'Dr. Roberto Meirelles',
-      registro: 'CRM-CE 189.201',
-      tipo: 'OFTALMOLOGISTA',
-      especialidade: 'Glaucoma e Presbiopia Avançada',
-      telefone: '(88) 3456-9900',
-      consultorio: 'Hospital de Olhos'
-    }
-  ]);
+  const [medicos, setMedicos] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_medicos');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Origens do Cliente
-  const [origens, setOrigens] = useState([
-    { id: 'orig-01', nome: 'Balcão / Loja Física (Fachada)', clientes_total: 42 },
-    { id: 'orig-02', nome: 'Indicação Médica (Oftalmologista parceiro)', clientes_total: 68 },
-    { id: 'orig-03', nome: 'Instagram / Redes Sociais', clientes_total: 25 },
-    { id: 'orig-04', nome: 'Convênio Empresarial / Parceria', clientes_total: 19 },
-    { id: 'orig-05', nome: 'Indicação de Amigos / Família', clientes_total: 31 }
-  ]);
+  const [origens, setOrigens] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_origens');
+    return saved ? JSON.parse(saved) : [
+      { id: 'orig-01', nome: 'Balcão / Loja Física', clientes_total: 0 },
+      { id: 'orig-02', nome: 'Indicação Médica', clientes_total: 0 },
+      { id: 'orig-03', nome: 'Redes Sociais / WhatsApp', clientes_total: 0 },
+      { id: 'orig-04', nome: 'Convênio / Parceria', clientes_total: 0 }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_fornecedores', JSON.stringify(fornecedores));
+  }, [fornecedores]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_medicos', JSON.stringify(medicos));
+  }, [medicos]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_origens', JSON.stringify(origens));
+  }, [origens]);
 
   // Modais de Criação
   const [isModalFuncionarioOpen, setIsModalFuncionarioOpen] = useState(false);

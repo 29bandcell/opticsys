@@ -77,53 +77,49 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
   const [itemBuscaNome, setItemBuscaNome] = useState('');
   const [itemValorUnit, setItemValorUnit] = useState(0);
   const [itemQtd, setItemQtd] = useState(1);
-  const [itensOS, setItensOS] = useState<ItemProdutoServicoOS[]>([
-    { id: '1', nome: 'Armação Ray-Ban RB5154 Clubmaster', quantidade: 1, valor_unitario: 480.00, valor_total: 480.00 },
-    { id: '2', nome: 'Par de Lentes Zeiss Digital BlueProtect', quantidade: 1, valor_unitario: 650.00, valor_total: 650.00 },
-    { id: '3', nome: 'Montagem e Surfaçagem Especial', quantidade: 1, valor_unitario: 40.00, valor_total: 40.00 }
-  ]);
+  const [itensOS, setItensOS] = useState<ItemProdutoServicoOS[]>([]);
 
   // 3. Receita Médica e Grade Óptica
   const [clienteTemReceita, setClienteTemReceita] = useState<'SIM' | 'NAO'>('SIM');
   const [dataExame, setDataExame] = useState(() => new Date().toISOString().split('T')[0]);
-  const [medicoPrescritor, setMedicoPrescritor] = useState('Dra. Amanda Castro - CRM 14920');
+  const [medicoPrescritor, setMedicoPrescritor] = useState('');
   const [fotoReceita, setFotoReceita] = useState<string | null>(null);
 
   // Grade Óptica - Longe
-  const [esfOD, setEsfOD] = useState<number>(-2.25);
-  const [cilOD, setCilOD] = useState<number>(-0.75);
-  const [eixoOD, setEixoOD] = useState<number>(180);
-  const [esfOE, setEsfOE] = useState<number>(-2.00);
-  const [cilOE, setCilOE] = useState<number>(-1.00);
-  const [eixoOE, setEixoOE] = useState<number>(175);
+  const [esfOD, setEsfOD] = useState<number>(0.00);
+  const [cilOD, setCilOD] = useState<number>(0.00);
+  const [eixoOD, setEixoOD] = useState<number>(0);
+  const [esfOE, setEsfOE] = useState<number>(0.00);
+  const [cilOE, setCilOE] = useState<number>(0.00);
+  const [eixoOE, setEixoOE] = useState<number>(0);
 
   // Grade Óptica - Perto & Adição
   const [esfPertoOD, setEsfPertoOD] = useState<number>(0.00);
-  const [cilPertoOD, setCilPertoOD] = useState<number>(-0.75);
-  const [eixoPertoOD, setEixoPertoOD] = useState<number>(180);
+  const [cilPertoOD, setCilPertoOD] = useState<number>(0.00);
+  const [eixoPertoOD, setEixoPertoOD] = useState<number>(0);
   const [esfPertoOE, setEsfPertoOE] = useState<number>(0.00);
-  const [cilPertoOE, setCilPertoOE] = useState<number>(-1.00);
-  const [eixoPertoOE, setEixoPertoOE] = useState<number>(175);
-  const [adicao, setAdicao] = useState<number>(2.25);
+  const [cilPertoOE, setCilPertoOE] = useState<number>(0.00);
+  const [eixoPertoOE, setEixoPertoOE] = useState<number>(0);
+  const [adicao, setAdicao] = useState<number>(0.00);
 
   // 4. Pupilômetro & Medidas de Montagem
-  const [altOD, setAltOD] = useState<number>(19.0);
-  const [altOE, setAltOE] = useState<number>(19.0);
-  const [dnpOD, setDnpOD] = useState<number>(31.5);
-  const [dnpOE, setDnpOE] = useState<number>(32.0);
-  const [dpTotal, setDpTotal] = useState<number>(63.5);
-  const [aroHorizontal, setAroHorizontal] = useState<number>(52.0);
-  const [aroVertical, setAroVertical] = useState<number>(38.0);
-  const [ponte, setPonte] = useState<number>(18.0);
-  const [diagonalMaior, setDiagonalMaior] = useState<number>(55.0);
+  const [altOD, setAltOD] = useState<number>(0);
+  const [altOE, setAltOE] = useState<number>(0);
+  const [dnpOD, setDnpOD] = useState<number>(0);
+  const [dnpOE, setDnpOE] = useState<number>(0);
+  const [dpTotal, setDpTotal] = useState<number>(0);
+  const [aroHorizontal, setAroHorizontal] = useState<number>(0);
+  const [aroVertical, setAroVertical] = useState<number>(0);
+  const [ponte, setPonte] = useState<number>(0);
+  const [diagonalMaior, setDiagonalMaior] = useState<number>(0);
 
   // 5. Lente & Laboratório
-  const [tipoLenteFab, setTipoLenteFab] = useState<'PRONTA' | 'SURFACADA'>('SURFACADA');
-  const [materialLente, setMaterialLente] = useState<'RESINA_1.56' | 'POLICARBONATO_1.59' | 'TRIVEX_1.53' | 'ALTO_INDICE_1.67' | 'ALTO_INDICE_1.74' | 'CRISTAL'>('ALTO_INDICE_1.67');
+  const [tipoLenteFab, setTipoLenteFab] = useState<'PRONTA' | 'SURFACADA'>('PRONTA');
+  const [materialLente, setMaterialLente] = useState<'RESINA_1.56' | 'POLICARBONATO_1.59' | 'TRIVEX_1.53' | 'ALTO_INDICE_1.67' | 'ALTO_INDICE_1.74' | 'CRISTAL'>('RESINA_1.56');
   const [coloracao, setColoracao] = useState('Incolor');
-  const [tratamento, setTratamento] = useState('Antirreflexo Premium + Filtro Azul');
+  const [tratamento, setTratamento] = useState('Antirreflexo');
   const [laboratorioId, setLaboratorioId] = useState(laboratorios[0]?.id || '');
-  const [localMontagem, setLocalMontagem] = useState<'LOJA' | 'LABORATORIO'>('LABORATORIO');
+  const [localMontagem, setLocalMontagem] = useState<'LOJA' | 'LABORATORIO'>('LOJA');
 
   // 6. Armação & Formato
   const [segueArmacao, setSegueArmacao] = useState<'SIM' | 'NAO'>('SIM');
@@ -132,14 +128,11 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
   const [formatoArmacao, setFormatoArmacao] = useState<string>('RECTANGLE');
 
   // 7. Fotos da O.S. (Galeria de até 5 fotos)
-  const [fotosOS, setFotosOS] = useState<string[]>([
-    'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?w=300&q=80',
-    'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=300&q=80'
-  ]);
+  const [fotosOS, setFotosOS] = useState<string[]>([]);
 
   // 8. Observações & Desconto
-  const [observacao, setObservacao] = useState('Lente com espessura afinada nas bordas. Cliente solicitou bizel centralizado.');
-  const [desconto, setDesconto] = useState(50.00);
+  const [observacao, setObservacao] = useState('');
+  const [desconto, setDesconto] = useState(0);
 
   // Atualiza DP total automaticamente ao mudar DNP
   useEffect(() => {

@@ -6,28 +6,14 @@ import { Badge } from '../components/common/Badge';
 export const Agenda: React.FC = () => {
   const { clientes } = useAuthAndTenant();
 
-  const [agendamentos, setAgendamentos] = useState([
-    {
-      id: 'ag-01',
-      paciente_nome: 'Mariana Silveira Albuquerque',
-      telefone: '(11) 98765-4321',
-      data: '2026-09-28',
-      horario: '14:00',
-      profissional: 'Dra. Vanessa Lima (Optometrista)',
-      tipo: 'Exame de Refração & Acuidade Visual',
-      status: 'CONFIRMADO'
-    },
-    {
-      id: 'ag-02',
-      paciente_nome: 'Rodrigo Augusto Fontana',
-      telefone: '(11) 97123-8899',
-      data: '2026-09-28',
-      horario: '15:30',
-      profissional: 'Dr. Fernando Arantes (Oftalmo)',
-      tipo: 'Adaptação de Lentes Multifocais',
-      status: 'PENDENTE'
-    }
-  ]);
+  const [agendamentos, setAgendamentos] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_agenda');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('opticsys_agenda', JSON.stringify(agendamentos));
+  }, [agendamentos]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pacienteNome, setPacienteNome] = useState('');
@@ -106,6 +92,13 @@ export const Agenda: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {agendamentos.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400">
+                  Nenhuma consulta agendada. Clique em <strong>"Novo Agendamento"</strong> para agendar.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

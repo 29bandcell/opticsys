@@ -7,32 +7,14 @@ import { PrintOrcamentoModal, OrcamentoData } from '../components/common/PrintOr
 export const Orcamentos: React.FC = () => {
   const { clientes, produtos, lojaAtiva } = useAuthAndTenant();
 
-  const [orcamentos, setOrcamentos] = useState<OrcamentoData[]>([
-    {
-      id: 'orc-101',
-      cliente_nome: 'Mariana Silveira Albuquerque',
-      telefone: '(88) 98765-4321',
-      armacao: 'Ray-Ban Clubmaster Acetato',
-      lente: 'Zeiss SmartLife Monofocal 1.67',
-      tratamentos: 'DuraVision Platinum + BlueProtect',
-      valor_total: 2190.00,
-      data: '2026-09-25',
-      validade: '2026-10-05',
-      status: 'EM_ABERTO'
-    },
-    {
-      id: 'orc-102',
-      cliente_nome: 'Rodrigo Augusto Fontana',
-      telefone: '(88) 99742-1049',
-      armacao: 'Oakley Holbrook RX Titânio',
-      lente: 'Varilux Comfort Max Resina 1.59',
-      tratamentos: 'Crizal Rock + Transitions Cinza',
-      valor_total: 2700.00,
-      data: '2026-09-26',
-      validade: '2026-10-06',
-      status: 'APROVADO'
-    }
-  ]);
+  const [orcamentos, setOrcamentos] = useState<OrcamentoData[]>(() => {
+    const saved = localStorage.getItem('opticsys_orcamentos');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('opticsys_orcamentos', JSON.stringify(orcamentos));
+  }, [orcamentos]);
 
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -160,6 +142,13 @@ export const Orcamentos: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {orcamentos.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-8 text-center text-slate-400">
+                  Nenhum orçamento registrado. Clique em <strong>"Novo Orçamento"</strong> para criar.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

@@ -123,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenNovaOS }
             </span>
           </div>
           <p className="text-[10px] text-slate-400 mt-0.5">
-            Essilor & Zeiss Labs
+            {osNoLab.length > 0 ? 'Surfaçagem em andamento' : 'Nenhum pedido no lab'}
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenNovaOS }
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-xl font-extrabold font-mono text-amber-700 dark:text-amber-400">
-              2 Pacientes
+              {receitas.length} {receitas.length === 1 ? 'Paciente' : 'Pacientes'}
             </span>
             <span className="text-[10px] font-semibold text-amber-600 group-hover:underline flex items-center">
               Avisar Zap <ArrowUpRight className="w-3 h-3" />

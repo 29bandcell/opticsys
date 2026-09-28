@@ -68,37 +68,20 @@ export const ZapOtica: React.FC = () => {
   const [sucessoAlerta, setSucessoAlerta] = useState<string | null>(null);
 
   // Histórico de Logs de Envio
-  const [logsEnvios, setLogsEnvios] = useState<MensagemLog[]>([
-    {
-      id: 'log-1',
-      cliente_nome: 'Marcos Vinícius Silva',
-      telefone: '(88) 99742-1049',
-      tipo: 'OS_PRONTA',
-      conteudo: `Olá, Marcos Vinícius Silva! Seus óculos (O.S. #1001) estão prontos na ${lojaAtiva.nome_fantasia}. Venha fazer a prova e ajuste fino!`,
-      data_envio: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-      status: 'LIDO'
-    },
-    {
-      id: 'log-2',
-      cliente_nome: 'Ana Carolina Mendes',
-      telefone: '(88) 98821-3940',
-      tipo: 'RETORNO_GRAU',
-      conteudo: `Olá, Ana Carolina Mendes! Já faz quase 1 ano desde sua última consulta de grau. Cuidar da visão é essencial!`,
-      data_envio: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-      status: 'ENTREGUE'
-    }
-  ]);
+  const [logsEnvios, setLogsEnvios] = useState<MensagemLog[]>(() => {
+    const saved = localStorage.getItem('opticsys_zap_logs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_zap_logs', JSON.stringify(logsEnvios));
+  }, [logsEnvios]);
 
   // Robô Automático de Aniversário (Disparo diário às 07:00 da manhã)
   const [roboAniversarioAtivo, setRoboAniversarioAtivo] = useState(true);
   const [horarioDisparoAniv, setHorarioDisparoAniv] = useState('07:00');
   const [cupomDescontoAniv, setCupomDescontoAniv] = useState('15%');
-  const [aniversariantesList, setAniversariantesList] = useState([
-    { id: 'aniv-1', nome: 'Juliana Paes Ferreira', fone: '(88) 99654-1234', niver_dia: 'Hoje (27/09)', statusEnvio: 'ENVIADO_07H' as 'ENVIADO_07H' | 'AGENDADO_07H', data_nasc: '1992-09-27' },
-    { id: 'aniv-2', nome: 'Rodrigo Alves Silva', fone: '(88) 98741-9988', niver_dia: 'Hoje (27/09)', statusEnvio: 'AGENDADO_07H' as 'ENVIADO_07H' | 'AGENDADO_07H', data_nasc: '1988-09-27' },
-    { id: 'aniv-3', nome: 'Beatriz Costa Lima', fone: '(88) 99123-4567', niver_dia: 'Amanhã (28/09)', statusEnvio: 'AGENDADO_07H' as 'ENVIADO_07H' | 'AGENDADO_07H', data_nasc: '1995-09-28' },
-    { id: 'aniv-4', nome: 'Marcos Vinícius Silva', fone: '(88) 99742-1049', niver_dia: 'Em 3 dias (30/09)', statusEnvio: 'AGENDADO_07H' as 'ENVIADO_07H' | 'AGENDADO_07H', data_nasc: '1984-09-30' }
-  ]);
+  const [aniversariantesList, setAniversariantesList] = useState<any[]>([]);
 
   // Itens filtrados
   const osProntas = ordensServico.filter(o => o.status === 'PRONTO_RETIRADA');

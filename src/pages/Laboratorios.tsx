@@ -85,6 +85,16 @@ export const Laboratorios: React.FC = () => {
         })}
       </div>
 
+      {laboratorios.length === 0 && (
+        <div className="bg-white dark:bg-[#101014] border border-slate-200 dark:border-zinc-800 rounded-lg p-10 text-center space-y-2">
+          <FlaskConical className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="font-bold text-slate-800 dark:text-zinc-200 text-sm">Nenhum laboratório cadastrado</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Cadastre os laboratórios de surfaçagem parceiros da sua ótica para acompanhar pedidos de montagem e prazos de entrega.
+          </p>
+        </div>
+      )}
+
     </div>
   );
 };

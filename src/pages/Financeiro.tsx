@@ -36,11 +36,14 @@ export const Financeiro: React.FC = () => {
   const [statusLancamento, setStatusLancamento] = useState<'PAGO' | 'PENDENTE'>('PAGO');
 
   // Estado local para títulos a receber com possibilidade de baixa imediata
-  const [titulosReceber, setTitulosReceber] = useState([
-    { id: 'REC-101', data_vencimento: '2026-10-10', cliente: 'Mariana Silveira Albuquerque', origem: 'O.S. #1042 (Zeiss)', parcela: '2 de 3', valor: 545.00, status: 'PENDENTE' },
-    { id: 'REC-102', data_vencimento: '2026-10-15', cliente: 'Rodrigo Augusto Fontana', origem: 'O.S. #1043 (Varilux)', parcela: '2 de 6', valor: 450.00, status: 'PENDENTE' },
-    { id: 'REC-103', data_vencimento: '2026-09-25', cliente: 'Carlos Eduardo Mendes', origem: 'O.S. #1039 (Hoya)', parcela: '1 de 2', valor: 380.00, status: 'PAGO' }
-  ]);
+  const [titulosReceber, setTitulosReceber] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_titulos_receber');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_titulos_receber', JSON.stringify(titulosReceber));
+  }, [titulosReceber]);
 
   const abrirModal = (tipo: 'RECEITA' | 'DESPESA') => {
     setTipoModal(tipo);

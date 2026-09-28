@@ -172,67 +172,44 @@ export const ModuloFiscal: React.FC<ModuloFiscalProps> = ({
   const [isProcessingXML, setIsProcessingXML] = useState(false);
   const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
 
-  // Estado das Notas Emitidas (Simulação SEFAZ via Focus NFe)
-  const [notasEmitidas, setNotasEmitidas] = useState<NotaFiscalEmitida[]>([
-    {
-      id: 'nf-101',
-      loja_id: lojaAtiva.id,
-      numero_nota: 1042,
-      serie: 1,
-      tipo: 'NFCe',
-      chave_acesso: '35260949680752000130650010000010421839201948',
-      protocolo: '135260098492019',
-      cliente_nome: 'Marcos Vinícius Silva',
-      cliente_documento: '123.456.789-00',
-      valor_total: 680.00,
-      data_emissao: new Date().toISOString(),
-      status: 'AUTORIZADA',
-      link_danfe: '#',
-      link_xml: '#',
-      itens_resumo: 'Armação Ray-Ban RB5154 + Lente Antirreflexo',
-      qr_code_url: 'https://www.fazenda.sp.gov.br/nfce/qrcode?p=35260949680752000130650010000010421839201948'
-    },
-    {
-      id: 'nf-102',
-      loja_id: lojaAtiva.id,
-      numero_nota: 1041,
-      serie: 1,
-      tipo: 'NFCe',
-      chave_acesso: '35260949680752000130650010000010411839201947',
-      protocolo: '135260098492018',
-      cliente_nome: 'Ana Carolina Mendes',
-      cliente_documento: '987.654.321-11',
-      valor_total: 1250.00,
-      data_emissao: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      status: 'AUTORIZADA',
-      link_danfe: '#',
-      link_xml: '#',
-      itens_resumo: 'Armação Vogue Acetato + Lente Multifocal Digital',
-      qr_code_url: 'https://www.fazenda.sp.gov.br/nfce/qrcode'
-    }
-  ]);
+  // Estado das Notas Emitidas (SEFAZ / Focus NFe)
+  const [notasEmitidas, setNotasEmitidas] = useState<NotaFiscalEmitida[]>(() => {
+    const saved = localStorage.getItem('opticsys_notas_fiscais');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_notas_fiscais', JSON.stringify(notasEmitidas));
+  }, [notasEmitidas]);
 
   // Modal de Impressão do Cupom Fiscal
   const [modalDanfe, setModalDanfe] = useState<NotaFiscalEmitida | null>(null);
   const [isEmitindoNota, setIsEmitindoNota] = useState<string | null>(null);
 
   // Configurações Fiscais e Focus NFe
-  const [configFiscal, setConfigFiscal] = useState({
-    ambiente: 'HOMOLOGACAO', // HOMOLOGACAO ou PRODUCAO
-    focus_token: 'fc_live_89a74b21e89b472199028371629ab910',
-    focus_subconta_id: 'emp_opticsys_01',
-    webhook_url: 'https://api.opticsys.com.br/webhooks/focus-nfe',
-    certificado_nome: 'certificado_a1_otica.pfx',
-    certificado_validade: '15/10/2027',
-    senha_certificado: '••••••••',
-    csc_token: '000001',
-    csc_codigo: 'A8F939B2-E839-4921-9920-192837482910',
-    serie_nfce: 1,
-    proximo_numero_nfce: 1043,
-    serie_nfe: 1,
-    proximo_numero_nfe: 520,
-    email_contabilidade: 'contabilidade@escritoriofiscal.com.br'
+  const [configFiscal, setConfigFiscal] = useState(() => {
+    const saved = localStorage.getItem('opticsys_config_fiscal');
+    return saved ? JSON.parse(saved) : {
+      ambiente: 'HOMOLOGACAO', // HOMOLOGACAO ou PRODUCAO
+      focus_token: '',
+      focus_subconta_id: '',
+      webhook_url: '',
+      certificado_nome: '',
+      certificado_validade: '',
+      senha_certificado: '',
+      csc_token: '000001',
+      csc_codigo: '',
+      serie_nfce: 1,
+      proximo_numero_nfce: 1,
+      serie_nfe: 1,
+      proximo_numero_nfe: 1,
+      email_contabilidade: ''
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_config_fiscal', JSON.stringify(configFiscal));
+  }, [configFiscal]);
 
   const [pingStatus, setPingStatus] = useState<string | null>(null);
   const [isPinging, setIsPinging] = useState(false);

@@ -14,25 +14,32 @@ export const ProdutosEstoque: React.FC = () => {
 
   // Estados de Categorias, Marcas, Unidades e Materiais
   const [categorias, setCategorias] = useState([
-    { id: 'cat-1', nome: 'Armações Receituário Masculino', total: 18 },
-    { id: 'cat-2', nome: 'Armações Receituário Feminino', total: 24 },
-    { id: 'cat-3', nome: 'Armações Infantis / Kids', total: 12 },
-    { id: 'cat-4', nome: 'Óculos de Sol (Solares Polarizados)', total: 15 },
-    { id: 'cat-5', nome: 'Lentes Monofocais Antirreflexo', total: 30 },
-    { id: 'cat-6', nome: 'Lentes Multifocais Digitais', total: 22 },
-    { id: 'cat-7', nome: 'Lentes de Contato Descartáveis', total: 40 },
-    { id: 'cat-8', nome: 'Acessórios & Soluções de Limpeza', total: 55 },
+    { id: 'cat-1', nome: 'Armações Receituário Masculino', total: 0 },
+    { id: 'cat-2', nome: 'Armações Receituário Feminino', total: 0 },
+    { id: 'cat-3', nome: 'Armações Infantis / Kids', total: 0 },
+    { id: 'cat-4', nome: 'Óculos de Sol (Solares Polarizados)', total: 0 },
+    { id: 'cat-5', nome: 'Lentes Monofocais Antirreflexo', total: 0 },
+    { id: 'cat-6', nome: 'Lentes Multifocais Digitais', total: 0 },
+    { id: 'cat-7', nome: 'Lentes de Contato Descartáveis', total: 0 },
+    { id: 'cat-8', nome: 'Acessórios & Soluções de Limpeza', total: 0 },
   ]);
 
-  const [marcas, setMarcas] = useState([
-    { id: 'mar-1', nome: 'Ray-Ban', pais: 'Itália (Luxottica)', produtos: 22 },
-    { id: 'mar-2', nome: 'Oakley', pais: 'EUA (Luxottica)', produtos: 14 },
-    { id: 'mar-3', nome: 'Vogue Eyewear', pais: 'Itália (Luxottica)', produtos: 19 },
-    { id: 'mar-4', nome: 'Zeiss Vision Care', pais: 'Alemanha', produtos: 28 },
-    { id: 'mar-5', nome: 'Essilor (Varilux / Crizal)', pais: 'França', produtos: 35 },
-    { id: 'mar-6', nome: 'Hoya Lens', pais: 'Japão', produtos: 16 },
-    { id: 'mar-7', nome: 'Carrera', pais: 'Itália (Sáfilo)', produtos: 11 },
-  ]);
+  const [marcas, setMarcas] = useState<any[]>(() => {
+    const saved = localStorage.getItem('opticsys_marcas');
+    return saved ? JSON.parse(saved) : [
+      { id: 'mar-1', nome: 'Ray-Ban', pais: 'Itália (Luxottica)', produtos: 0 },
+      { id: 'mar-2', nome: 'Oakley', pais: 'EUA (Luxottica)', produtos: 0 },
+      { id: 'mar-3', nome: 'Vogue Eyewear', pais: 'Itália (Luxottica)', produtos: 0 },
+      { id: 'mar-4', nome: 'Zeiss Vision Care', pais: 'Alemanha', produtos: 0 },
+      { id: 'mar-5', nome: 'Essilor (Varilux / Crizal)', pais: 'França', produtos: 0 },
+      { id: 'mar-6', nome: 'Hoya Lens', pais: 'Japão', produtos: 0 },
+      { id: 'mar-7', nome: 'Grife Própria / Genérica', pais: 'Brasil', produtos: 0 },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_marcas', JSON.stringify(marcas));
+  }, [marcas]);
 
   const [unidades, setUnidades] = useState([
     { id: 'un-1', sigla: 'UN', descricao: 'Unidade (Peça individual)', uso: 'Armações e Solares' },
@@ -42,9 +49,9 @@ export const ProdutosEstoque: React.FC = () => {
   ]);
 
   const [materiais, setMateriais] = useState([
-    { id: 'mat-1', nome: 'Acetato de Celulose Italiano', caracteristica: 'Hipoalergênico, resistente e ajustável ao calor', uso: 'Armações de Grau e Solares' },
+    { id: 'mat-1', nome: 'Acetato de Celulose', caracteristica: 'Hipoalergênico, resistente e ajustável ao calor', uso: 'Armações de Grau e Solares' },
     { id: 'mat-2', nome: 'Titânio Puro / Beta Titânio', caracteristica: 'Ultraleve, ultra-resistente e não enferruja', uso: 'Armações Premium' },
-    { id: 'mat-3', nome: 'Metal Monel / Aço Inoxidável', caracteristica: 'Fino, discreto e flexível', uso: 'Aros fechados e fio de nylon' },
+    { id: 'mat-3', nome: 'Metal / Aço Inoxidável', caracteristica: 'Fino, discreto e flexível', uso: 'Aros fechados e fio de nylon' },
     { id: 'mat-4', nome: 'Grilamid TR-90 / Injetado', caracteristica: 'Memória elástica, ideal para esportes e infantil', uso: 'Linhas Esportivas e Kids' },
     { id: 'mat-5', nome: 'Resina CR-39 (Índice 1.50/1.56)', caracteristica: 'Ótima qualidade óptica, uso em baixos graus', uso: 'Lentes Oftálmicas' },
     { id: 'mat-6', nome: 'Policarbonato (Índice 1.59)', caracteristica: 'Alta resistência a impactos, recomendado para esportes e 3 peças', uso: 'Lentes Oftálmicas' },
@@ -54,7 +61,7 @@ export const ProdutosEstoque: React.FC = () => {
   // Form State
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState<TipoProduto>('ARMACAO_GRAU');
-  const [marca, setMarca] = useState('Ray-Ban');
+  const [marca, setMarca] = useState('');
   const [referencia, setReferencia] = useState('');
   const [codigoBarras, setCodigoBarras] = useState('');
   const [precoCusto, setPrecoCusto] = useState(0);

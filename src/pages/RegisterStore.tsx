@@ -19,6 +19,7 @@ import {
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { TenantPlan } from '../types';
 import { evolutionService } from '../services/evolutionApi';
+import { EVOLUTION_CONFIG } from '../config/evolution';
 
 interface RegisterStoreProps {
   initialPlan?: TenantPlan;
@@ -98,7 +99,7 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
     try {
       // Dispara via Evolution API global
       await evolutionService.enviarMensagemTexto(
-        'opticsys-cloud-master',
+        EVOLUTION_CONFIG.INSTANCE_NAME,
         telefone,
         textoMensagem
       );
@@ -522,9 +523,14 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
                 ))}
               </div>
 
-              {/* Dica do código para facilidade em ambiente de testes */}
-              <div className="bg-sky-50 border border-sky-200 rounded-lg p-2.5 text-center text-[11px] text-[#0284C7] space-y-1">
-                <span>📱 Código enviado no seu WhatsApp: <strong>{codigoEnviado}</strong></span>
+              {/* Mensagem de segurança / instrução */}
+              <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-lg p-3 text-center text-[11px] text-emerald-800 space-y-0.5">
+                <p className="font-bold flex items-center justify-center gap-1.5 text-emerald-700">
+                  <MessageCircle className="w-3.5 h-3.5" /> Código enviado via WhatsApp!
+                </p>
+                <p className="text-slate-500 text-[10px]">
+                  Consulte a mensagem recebida no seu celular e digite os 6 dígitos acima.
+                </p>
               </div>
 
               {/* Botão de Validar */}

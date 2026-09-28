@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Boxes, Plus, Search, Filter, Tag, Layers, Bookmark, Scale, Sparkles, CheckCircle } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { Produto, TipoProduto } from '../types';

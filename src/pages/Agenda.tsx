@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, User, Plus, Phone, CheckCircle, Eye } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { Badge } from '../components/common/Badge';

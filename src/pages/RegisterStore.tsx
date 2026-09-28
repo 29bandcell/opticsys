@@ -88,6 +88,7 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
 
   // Enviar código para o WhatsApp do Lead
   const dispararCodigoWhatsApp = async (codigo: string, telefone: string, nome: string, otica: string) => {
+    const telDigitos = telefone.replace(/\D/g, '');
     const textoMensagem = 
       `🔐 *OpticSys Cloud - Confirmação de Cadastro*\n\n` +
       `Olá, *${nome || 'Doutor(a)'}*!\n\n` +
@@ -97,10 +98,10 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
       `_Equipe OpticSys • Wipelis (88) 98882-2847_`;
 
     try {
-      // Dispara via Evolution API global
+      // Dispara via Evolution API global com fallback inteligente para instâncias ativas
       await evolutionService.enviarMensagemTexto(
-        EVOLUTION_CONFIG.INSTANCE_NAME,
-        telefone,
+        'opticsys-cloud-master',
+        telDigitos,
         textoMensagem
       );
     } catch (e) {
@@ -251,6 +252,7 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
           nome_responsavel: formData.nome_responsavel,
           telefone: formData.telefone,
           email: formData.email,
+          senha: formData.senha,
           plano: formData.plano,
           cnpj: '' // Não exige CNPJ para trial!
         });

@@ -85,6 +85,7 @@ interface AuthAndTenantContextType {
     cnpj?: string;
     telefone: string;
     email: string;
+    senha?: string;
     cidade?: string;
     uf?: string;
     plano: TenantPlan;
@@ -416,6 +417,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     cnpj?: string;
     telefone: string;
     email: string;
+    senha?: string;
     cidade?: string;
     uf?: string;
     plano: TenantPlan;
@@ -448,8 +450,9 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       loja_id: novaLojaId,
       nome: dados.nome_responsavel,
       email: dados.email,
+      telefone: dados.telefone,
       cargo: 'ADMIN',
-      senha: 'admin123',
+      senha: dados.senha || 'admin123',
       comissao_produto_pct: 4.0,
       comissao_servico_pct: 5.0,
       permissoes: {

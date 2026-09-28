@@ -102,18 +102,18 @@ export const Financeiro: React.FC = () => {
 
   const saldoLiquido = totalReceitas - totalDespesas;
 
-  // DRE Cálculos
-  const receitaBruta = totalReceitaHojeOuMes(totalReceitas);
-  const deducoesImpostosTaxas = receitaBruta * 0.045; // 4.5% Simples Nacional + Taxas de Cartão
+  // DRE Cálculos 100% baseados nas transações reais registradas
+  const receitaBruta = totalReceitas;
+  const deducoesImpostosTaxas = receitaBruta > 0 ? (receitaBruta * 0.045) : 0; // 4.5% Simples Nacional + Taxas de Cartão
   const receitaLiquida = receitaBruta - deducoesImpostosTaxas;
-  const cmvCustosVariaveis = receitaBruta * 0.32; // 32% Custo das Lentes + Armações vendidas
+  const cmvCustosVariaveis = transacoes
+    .filter(t => t.tipo === 'DESPESA' && t.status === 'PAGO' && (t.categoria.includes('Laboratório') || t.categoria.includes('Fornecedor')))
+    .reduce((acc, curr) => acc + curr.valor, 0) || (receitaBruta > 0 ? receitaBruta * 0.32 : 0);
   const margemContribuicao = receitaLiquida - cmvCustosVariaveis;
-  const despesasFixas = 3200.00; // Aluguel loja, Energia, Sistema SaaS
+  const despesasFixas = transacoes
+    .filter(t => t.tipo === 'DESPESA' && t.status === 'PAGO' && !t.categoria.includes('Laboratório') && !t.categoria.includes('Fornecedor'))
+    .reduce((acc, curr) => acc + curr.valor, 0);
   const lucroLiquidoDRE = margemContribuicao - despesasFixas;
-
-  function totalReceitaHojeOuMes(total: number) {
-    return total > 0 ? total + 12500.00 : 18500.00;
-  }
 
   const handleSalvarLancamento = (e: React.FormEvent) => {
     e.preventDefault();

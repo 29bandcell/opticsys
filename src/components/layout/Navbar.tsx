@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const hojeStr = new Date().toISOString().split('T')[0];
   const totalReceitaHoje = transacoes
     .filter(t => t.tipo === 'RECEITA' && t.status === 'PAGO' && (t.data_vencimento === hojeStr || t.data_pagamento?.startsWith(hojeStr)))
-    .reduce((acc, curr) => acc + curr.valor, 0) || 1480.00;
+    .reduce((acc, curr) => acc + curr.valor, 0);
 
   return (
     <>

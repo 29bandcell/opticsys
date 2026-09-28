@@ -1,0 +1,23 @@
+{
+  "short_name": "OpticSys",
+  "name": "OpticSys Cloud - ERP para Óticas",
+  "icons": [
+    {
+      "src": "/pwa-icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/pwa-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0284C7",
+  "theme_color": "#0284C7",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "description": "Sistema ERP e SaaS Completo para Óticas e Laboratórios de Montagem"
+}

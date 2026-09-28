@@ -34,6 +34,10 @@ const MainApp: React.FC = () => {
     if (window.location.hash === '#master' || window.location.hash === '#wipelis') {
       return 'MASTER';
     }
+    const isAuth = sessionStorage.getItem('opticsys_is_authenticated') === 'true';
+    if (!isAuth) {
+      return 'LOGIN';
+    }
     return 'APP';
   });
   const [previousView, setPreviousView] = useState<'APP' | 'LANDING' | 'LOGIN' | 'REGISTER'>('LANDING');
@@ -42,6 +46,13 @@ const MainApp: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isNovaOSOpen, setIsNovaOSOpen] = useState<boolean>(false);
   const [selectedPlanForTrial, setSelectedPlanForTrial] = useState<TenantPlan>('pro');
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('opticsys_is_authenticated');
+    sessionStorage.removeItem('opticsys_logged_user_id');
+    sessionStorage.removeItem('opticsys_active_loja_id');
+    setCurrentView('LOGIN');
+  };
 
   const isTabAllowed = (tabId: string): boolean => {
     if (!usuarioAtual) return true;
@@ -106,7 +117,8 @@ const MainApp: React.FC = () => {
           if (previousView === 'REGISTER') {
             setCurrentView('REGISTER');
           } else {
-            setCurrentView('APP');
+            const isAuth = sessionStorage.getItem('opticsys_is_authenticated') === 'true';
+            setCurrentView(isAuth ? 'APP' : 'LOGIN');
           }
         }}
       />
@@ -120,7 +132,10 @@ const MainApp: React.FC = () => {
           setSelectedPlanForTrial(plano);
           setCurrentView('REGISTER');
         }}
-        onEnterApp={() => setCurrentView('APP')}
+        onEnterApp={() => {
+          const isAuth = sessionStorage.getItem('opticsys_is_authenticated') === 'true';
+          setCurrentView(isAuth ? 'APP' : 'LOGIN');
+        }}
         onOpenTermos={() => handleOpenTermos('LANDING')}
         onOpenMaster={() => setCurrentView('MASTER')}
       />
@@ -134,8 +149,8 @@ const MainApp: React.FC = () => {
           setCurrentView('APP');
           setCurrentTab('dashboard');
         }}
+        onGoToLanding={() => setCurrentView('LANDING')}
         onGoToRegister={() => setCurrentView('REGISTER')}
-        onOpenTermos={() => handleOpenTermos('LOGIN')}
       />
     );
   }
@@ -158,7 +173,10 @@ const MainApp: React.FC = () => {
   if (currentView === 'MASTER') {
     return (
       <WipelisMasterPortal
-        onBackToApp={() => setCurrentView('APP')}
+        onBackToApp={() => {
+          const isAuth = sessionStorage.getItem('opticsys_is_authenticated') === 'true';
+          setCurrentView(isAuth ? 'APP' : 'LOGIN');
+        }}
         onGoToLanding={() => setCurrentView('LANDING')}
       />
     );
@@ -176,7 +194,7 @@ const MainApp: React.FC = () => {
         setCollapsed={setSidebarCollapsed}
         mobileOpen={mobileMenuOpen}
         setMobileOpen={setMobileMenuOpen}
-        onLogout={() => setCurrentView('LOGIN')}
+        onLogout={handleLogout}
       />
 
       {/* Área Principal de Conteúdo */}
@@ -193,7 +211,7 @@ const MainApp: React.FC = () => {
             setIsNovaOSOpen(true);
           }}
           onGoToLanding={() => setCurrentView('LANDING')}
-          onLogout={() => setCurrentView('LOGIN')}
+          onLogout={handleLogout}
           sidebarCollapsed={sidebarCollapsed}
           setSidebarCollapsed={setSidebarCollapsed}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}

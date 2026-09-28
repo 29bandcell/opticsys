@@ -47,6 +47,7 @@ export const INITIAL_FUNCIONARIOS: Funcionario[] = [
     nome: 'Administrador Master',
     email: 'admin@opticsys.com.br',
     cargo: 'ADMIN',
+    senha: 'admin123',
     comissao_produto_pct: 0.0,
     comissao_servico_pct: 0.0,
     permissoes: {

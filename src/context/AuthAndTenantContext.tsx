@@ -132,7 +132,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   });
 
   const [lojaAtivaId, setLojaAtivaId] = useState<string>(() => {
-    return localStorage.getItem('opticsys_active_loja_id') || INITIAL_LOJAS[0].id;
+    return sessionStorage.getItem('opticsys_active_loja_id') || localStorage.getItem('opticsys_active_loja_id') || INITIAL_LOJAS[0].id;
   });
 
   const lojaAtiva = lojas.find(l => l.id === lojaAtivaId) || lojas[0];
@@ -144,7 +144,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   });
 
   const [usuarioAtual, setUsuarioAtual] = useState<Funcionario>(() => {
-    const savedUserId = localStorage.getItem('opticsys_logged_user_id');
+    const savedUserId = sessionStorage.getItem('opticsys_logged_user_id');
     if (savedUserId) {
       const found = funcionarios.find(f => f.id === savedUserId);
       if (found) return found;
@@ -209,9 +209,12 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     localStorage.setItem('opticsys_active_loja_id', lojaAtivaId);
-    const userDaLoja = funcionarios.find(f => f.loja_id === lojaAtivaId && f.cargo === 'ADMIN') || funcionarios[0];
-    setUsuarioAtual(userDaLoja);
-  }, [lojaAtivaId, funcionarios]);
+    sessionStorage.setItem('opticsys_active_loja_id', lojaAtivaId);
+    if (usuarioAtual && usuarioAtual.loja_id !== lojaAtivaId) {
+      const userDaLoja = funcionarios.find(f => f.loja_id === lojaAtivaId) || funcionarios[0];
+      setUsuarioAtual(userDaLoja);
+    }
+  }, [lojaAtivaId]);
 
   useEffect(() => {
     localStorage.setItem('opticsys_funcionarios', JSON.stringify(funcionarios));
@@ -281,7 +284,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (usuarioAtual) {
-      localStorage.setItem('opticsys_logged_user_id', usuarioAtual.id);
+      sessionStorage.setItem('opticsys_logged_user_id', usuarioAtual.id);
     }
   }, [usuarioAtual]);
 
@@ -446,6 +449,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       nome: dados.nome_responsavel,
       email: dados.email,
       cargo: 'ADMIN',
+      senha: 'admin123',
       comissao_produto_pct: 4.0,
       comissao_servico_pct: 5.0,
       permissoes: {
@@ -514,6 +518,9 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem('opticsys_lojas', JSON.stringify([novaLoja]));
     localStorage.setItem('opticsys_funcionarios', JSON.stringify([novoAdmin]));
     localStorage.setItem('opticsys_active_loja_id', novaLojaId);
+    sessionStorage.setItem('opticsys_is_authenticated', 'true');
+    sessionStorage.setItem('opticsys_logged_user_id', novoAdmin.id);
+    sessionStorage.setItem('opticsys_active_loja_id', novaLojaId);
 
     return novaLojaId;
   };

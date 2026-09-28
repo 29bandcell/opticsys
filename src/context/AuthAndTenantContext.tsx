@@ -10,7 +10,10 @@ import {
   VendaPDV, 
   TransacaoFinanceira, 
   StatusOSOptica,
-  TenantPlan
+  TenantPlan,
+  LeadSaaS, 
+  TenantSaaS, 
+  StatusLead
 } from '../types';
 import {
   INITIAL_LOJAS,
@@ -25,7 +28,27 @@ import {
   INITIAL_LEADS_SAAS,
   INITIAL_TENANTS_SAAS
 } from '../lib/mockData';
-import { LeadSaaS, TenantSaaS, StatusLead } from '../types';
+
+const OPTICSYS_SYSTEM_VERSION = '2.0.0-operational';
+
+// Auto-limpeza de dados de demonstração na primeira inicialização da versão operacional
+if (typeof window !== 'undefined') {
+  const currentVer = localStorage.getItem('opticsys_system_version');
+  if (currentVer !== OPTICSYS_SYSTEM_VERSION) {
+    localStorage.removeItem('opticsys_clientes');
+    localStorage.removeItem('opticsys_receitas');
+    localStorage.removeItem('opticsys_os');
+    localStorage.removeItem('opticsys_produtos');
+    localStorage.removeItem('opticsys_laboratorios');
+    localStorage.removeItem('opticsys_vendas');
+    localStorage.removeItem('opticsys_transacoes');
+    localStorage.removeItem('opticsys_leads_saas');
+    localStorage.removeItem('opticsys_tenants_saas');
+    localStorage.removeItem('opticsys_lojas');
+    localStorage.removeItem('opticsys_funcionarios');
+    localStorage.setItem('opticsys_system_version', OPTICSYS_SYSTEM_VERSION);
+  }
+}
 
 interface AuthAndTenantContextType {
   // Tenant & Auth
@@ -77,7 +100,9 @@ interface AuthAndTenantContextType {
   adicionarFuncionario: (func: Omit<Funcionario, 'id' | 'loja_id'>) => Funcionario;
   atualizarFuncionario: (id: string, dados: Partial<Funcionario>) => void;
   toggleFuncionarioAtivo: (id: string) => void;
+  realizarVendaPDV: (vendaData: Omit<VendaPDV, 'id' | 'loja_id' | 'numero_venda' | 'data_venda'>) => VendaPDV;
   adicionarTransacao: (tra: Omit<TransacaoFinanceira, 'id' | 'loja_id'>) => void;
+  limparTodosOsDadosLocais: () => void;
   
   // UI Helpers
   isDark: boolean;
@@ -109,7 +134,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     return funcionarios.find(f => f.loja_id === lojaAtivaId) || funcionarios[0];
   });
 
-  // Coleções de Dados
+  // Coleções de Dados Operacionais
   const [clientes, setClientes] = useState<Cliente[]>(() => {
     const saved = localStorage.getItem('opticsys_clientes');
     return saved ? JSON.parse(saved) : INITIAL_CLIENTES;
@@ -224,6 +249,27 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setLojaAtiva = (loja: Loja) => {
     setLojaAtivaId(loja.id);
+  };
+
+  const limparTodosOsDadosLocais = () => {
+    localStorage.removeItem('opticsys_clientes');
+    localStorage.removeItem('opticsys_receitas');
+    localStorage.removeItem('opticsys_os');
+    localStorage.removeItem('opticsys_produtos');
+    localStorage.removeItem('opticsys_laboratorios');
+    localStorage.removeItem('opticsys_vendas');
+    localStorage.removeItem('opticsys_transacoes');
+    localStorage.removeItem('opticsys_leads_saas');
+    localStorage.removeItem('opticsys_tenants_saas');
+    setClientes([]);
+    setReceitas([]);
+    setOrdensServico([]);
+    setProdutos([]);
+    setLaboratorios([]);
+    setVendas([]);
+    setTransacoes([]);
+    setLeadsSaaS([]);
+    setTenantsSaaS([]);
   };
 
   // Adicionar Lead captado na Landing Page ou Onboarding
@@ -399,7 +445,11 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       data_inicio: new Date().toISOString().split('T')[0],
       proximo_vencimento: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       total_filiais: 1,
-      total_usuarios: 1
+      total_usuarios: 1,
+      limite_notas_mes: dados.plano === 'pro_nf' ? 50 : 0,
+      notas_emitidas_mes: 0,
+      emissao_fiscal_ativa: dados.plano === 'pro_nf',
+      certificado_a1_status: 'PENDENTE'
     };
 
     setLeadsSaaS(prev => [novoLead, ...prev]);
@@ -593,6 +643,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       toggleFuncionarioAtivo,
       realizarVendaPDV,
       adicionarTransacao,
+      limparTodosOsDadosLocais,
       isDark,
       toggleDarkMode
     }}>

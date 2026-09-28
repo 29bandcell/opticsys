@@ -111,6 +111,7 @@ interface AuthAndTenantContextType {
   adicionarLaboratorio: (lab: Omit<Laboratorio, 'id' | 'loja_id' | 'total_pedidos_ativos'>) => Laboratorio;
   adicionarFuncionario: (func: Omit<Funcionario, 'id' | 'loja_id'>) => Funcionario;
   atualizarFuncionario: (id: string, dados: Partial<Funcionario>) => void;
+  removerFuncionario: (id: string) => void;
   toggleFuncionarioAtivo: (id: string) => void;
   realizarVendaPDV: (vendaData: Omit<VendaPDV, 'id' | 'loja_id' | 'numero_venda' | 'data_venda'>) => VendaPDV;
   adicionarTransacao: (tra: Omit<TransacaoFinanceira, 'id' | 'loja_id'>) => void;
@@ -143,6 +144,11 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   });
 
   const [usuarioAtual, setUsuarioAtual] = useState<Funcionario>(() => {
+    const savedUserId = localStorage.getItem('opticsys_logged_user_id');
+    if (savedUserId) {
+      const found = funcionarios.find(f => f.id === savedUserId);
+      if (found) return found;
+    }
     return funcionarios.find(f => f.loja_id === lojaAtivaId) || funcionarios[0];
   });
 
@@ -261,6 +267,23 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
   }, [lojas, lojaAtivaId]);
+
+  // Auto-limpeza do Administrador Master de demonstração quando a loja possui admin próprio cadastrado
+  useEffect(() => {
+    const temOutroAdmin = funcionarios.some(f => f.loja_id === lojaAtivaId && f.cargo === 'ADMIN' && f.id !== 'func-admin-01');
+    const temMaster = funcionarios.some(f => f.id === 'func-admin-01');
+    if (temOutroAdmin && temMaster) {
+      const limpos = funcionarios.filter(f => f.id !== 'func-admin-01');
+      setFuncionarios(limpos);
+      localStorage.setItem('opticsys_funcionarios', JSON.stringify(limpos));
+    }
+  }, [funcionarios, lojaAtivaId]);
+
+  useEffect(() => {
+    if (usuarioAtual) {
+      localStorage.setItem('opticsys_logged_user_id', usuarioAtual.id);
+    }
+  }, [usuarioAtual]);
 
   useEffect(() => {
     if (isDark) {
@@ -698,6 +721,15 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
   };
 
+  const removerFuncionario = (id: string) => {
+    const restantes = funcionarios.filter(f => f.id !== id);
+    setFuncionarios(restantes);
+    localStorage.setItem('opticsys_funcionarios', JSON.stringify(restantes));
+    if (usuarioAtual?.id === id && restantes.length > 0) {
+      setUsuarioAtual(restantes[0]);
+    }
+  };
+
   const adicionarTransacao = (traData: Omit<TransacaoFinanceira, 'id' | 'loja_id'>) => {
     const novaTra: TransacaoFinanceira = {
       ...traData,
@@ -712,7 +744,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       lojas,
       lojaAtiva,
       setLojaAtiva,
-      funcionarios,
+      funcionarios: funcionarios.filter(f => f.loja_id === lojaAtiva.id),
       usuarioAtual,
       setUsuarioAtual,
       clientes: clientes.filter(c => c.loja_id === lojaAtiva.id),
@@ -743,6 +775,7 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       adicionarLaboratorio,
       adicionarFuncionario,
       atualizarFuncionario,
+      removerFuncionario,
       toggleFuncionarioAtivo,
       realizarVendaPDV,
       adicionarTransacao,

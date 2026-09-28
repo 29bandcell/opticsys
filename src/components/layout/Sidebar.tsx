@@ -77,6 +77,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'configuracoes', label: 'Configurações', icon: Settings },
   ];
 
+  // Filtra itens do menu lateral baseado no cargo e permissões do usuário logado
+  const hasPermission = (tabId: string): boolean => {
+    if (!usuarioAtual) return true;
+    if (usuarioAtual.cargo === 'ADMIN') return true;
+
+    // Se for VENDEDOR (ex: gleidson)
+    if (usuarioAtual.cargo === 'VENDEDOR') {
+      const menusVendedor = ['dashboard', 'clientes', 'produtos', 'receitas', 'orcamentos', 'os', 'pdv', 'agenda', 'zapotica'];
+      if (!menusVendedor.includes(tabId)) {
+        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      }
+      return true;
+    }
+
+    // Se for OPTOMETRISTA
+    if (usuarioAtual.cargo === 'OPTOMETRISTA') {
+      const menusOpto = ['dashboard', 'clientes', 'receitas', 'agenda', 'zapotica'];
+      return menusOpto.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+    }
+
+    // Se for TECNICO_MONTAGEM
+    if (usuarioAtual.cargo === 'TECNICO_MONTAGEM') {
+      const menusTec = ['dashboard', 'os', 'laboratorios', 'produtos'];
+      return menusTec.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+    }
+
+    // Se for GERENTE
+    if (usuarioAtual.cargo === 'GERENTE') {
+      const restritoGerente = ['assinatura', 'configuracoes'];
+      if (restritoGerente.includes(tabId)) {
+        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      }
+      return true;
+    }
+
+    if (usuarioAtual.permissoes && usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes] !== undefined) {
+      return usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes];
+    }
+
+    return true;
+  };
+
+  const visibleMenuItems = menuItems.filter(item => hasPermission(item.id));
+
   const handleSelectTab = (tabId: string) => {
     setCurrentTab(tabId);
     if (setMobileOpen) {
@@ -142,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Menu de Navegação Vertical */}
         <nav className="p-2 md:p-1.5 space-y-1 md:space-y-0.5 text-xs">
-          {menuItems.map(item => {
+          {visibleMenuItems.map(item => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
             

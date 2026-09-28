@@ -25,7 +25,8 @@ import {
   EyeOff,
   Copy,
   RefreshCw,
-  Power
+  Power,
+  Trash2
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { Funcionario, RoleUsuario } from '../types';
@@ -38,6 +39,7 @@ export const Cadastros: React.FC = () => {
     lojaAtiva, 
     adicionarFuncionario, 
     atualizarFuncionario, 
+    removerFuncionario,
     toggleFuncionarioAtivo 
   } = useAuthAndTenant();
 
@@ -235,6 +237,37 @@ export const Cadastros: React.FC = () => {
     setTimeout(() => setAlertaZapSucesso(null), 3000);
   };
 
+  // Sincronizar permissões quando seleciona outro funcionário
+  useEffect(() => {
+    if (funcionarioSelecionado) {
+      const p = funcionarioSelecionado.permissoes || ({} as any);
+      setPermissoesEditadas({
+        'mod_dashboard': p.dashboard ?? true,
+        'mod_clientes': p.clientes ?? true,
+        'mod_produtos': p.estoque ?? true,
+        'mod_receitas': p.receitas ?? true,
+        'mod_os': p.os ?? true,
+        'mod_pdv': p.pdv ?? (funcionarioSelecionado.cargo !== 'OPTOMETRISTA'),
+        'mod_agenda': (p as any).agenda ?? true,
+        'mod_zapotica': (p as any).zapotica ?? true,
+        'mod_laboratorios': p.laboratorios ?? (funcionarioSelecionado.cargo !== 'VENDEDOR'),
+        'mod_financeiro': p.financeiro ?? (funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE'),
+        'mod_cadastros': (p as any).cadastros ?? (funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE'),
+        'mod_fiscal': (p as any).fiscal ?? (funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE'),
+        'mod_assinatura': (p as any).assinatura ?? (funcionarioSelecionado.cargo === 'ADMIN'),
+        'mod_configuracoes': p.configuracoes ?? (funcionarioSelecionado.cargo === 'ADMIN'),
+        'ver_preco_custo': false,
+        'dar_desconto_livre': false,
+        'cancelar_os': funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE',
+        'cancelar_venda': funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE',
+        'fechar_caixa': true,
+        'ver_faturamento_total': funcionarioSelecionado.cargo === 'ADMIN' || funcionarioSelecionado.cargo === 'GERENTE',
+        'alterar_comissoes': funcionarioSelecionado.cargo === 'ADMIN',
+        'excluir_pacientes': funcionarioSelecionado.cargo === 'ADMIN'
+      });
+    }
+  }, [funcionarioSelecionado]);
+
   const togglePerm = (chave: string) => {
     setPermissoesEditadas(prev => ({
       ...prev,
@@ -243,6 +276,29 @@ export const Cadastros: React.FC = () => {
   };
 
   const handleSalvarPermissoes = () => {
+    if (!funcionarioSelecionado) return;
+    const novasPermissoes = {
+      dashboard: permissoesEditadas['mod_dashboard'] ?? true,
+      clientes: permissoesEditadas['mod_clientes'] ?? true,
+      produtos: permissoesEditadas['mod_produtos'] ?? true,
+      estoque: permissoesEditadas['mod_produtos'] ?? true,
+      receitas: permissoesEditadas['mod_receitas'] ?? true,
+      os: permissoesEditadas['mod_os'] ?? true,
+      pdv: permissoesEditadas['mod_pdv'] ?? true,
+      laboratorios: permissoesEditadas['mod_laboratorios'] ?? true,
+      financeiro: permissoesEditadas['mod_financeiro'] ?? false,
+      configuracoes: permissoesEditadas['mod_configuracoes'] ?? false,
+      agenda: permissoesEditadas['mod_agenda'] ?? true,
+      zapotica: permissoesEditadas['mod_zapotica'] ?? true,
+      fiscal: permissoesEditadas['mod_fiscal'] ?? false,
+      cadastros: permissoesEditadas['mod_cadastros'] ?? false,
+      assinatura: permissoesEditadas['mod_assinatura'] ?? false
+    };
+
+    atualizarFuncionario(funcionarioSelecionado.id, {
+      permissoes: novasPermissoes as any
+    });
+
     setSucessoSalvar(true);
     setTimeout(() => setSucessoSalvar(false), 2500);
   };
@@ -442,6 +498,20 @@ export const Cadastros: React.FC = () => {
                         >
                           <Sliders className="w-3 h-3" />
                         </button>
+
+                        {funcionarios.length > 1 && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Deseja realmente excluir o colaborador "${f.nome}" desta ótica?`)) {
+                                removerFuncionario(f.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-md border border-rose-200 hover:bg-rose-50 text-rose-600 dark:border-rose-900/50 dark:hover:bg-rose-950/40 text-[11px] font-semibold transition-all shadow-2xs"
+                            title="Excluir Colaborador"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

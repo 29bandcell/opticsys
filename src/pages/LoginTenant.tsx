@@ -32,7 +32,7 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   onGoToLanding,
   onGoToRegister
 }) => {
-  const { lojas, setLojaAtiva, usuarioAtual, setUsuarioAtual } = useAuthAndTenant();
+  const { lojas, setLojaAtiva, funcionarios, usuarioAtual, setUsuarioAtual } = useAuthAndTenant();
 
   // Estados do Formulário de Login
   const [emailLogin, setEmailLogin] = useState('');
@@ -66,14 +66,60 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
 
     setTimeout(() => {
       setIsLoadingLogin(false);
-      if (!emailLogin || !senhaLogin) {
+      const emailLimpo = emailLogin.trim().toLowerCase();
+      const senhaLimpa = senhaLogin.trim();
+
+      if (!emailLimpo || !senhaLimpa) {
         setErroLogin('Por favor, informe seu e-mail e senha.');
         return;
       }
 
-      // Login bem sucedido (acessa a ótica)
-      onSuccess();
-    }, 600);
+      // 1. Procura o funcionário pelo e-mail ou telefone cadastrado
+      const funcEncontrado = funcionarios.find(f => 
+        f.email.toLowerCase() === emailLimpo || 
+        (f.telefone && f.telefone.replace(/\D/g, '') === emailLimpo.replace(/\D/g, ''))
+      );
+
+      if (funcEncontrado) {
+        if (funcEncontrado.senha && funcEncontrado.senha !== senhaLimpa) {
+          setErroLogin('Senha incorreta.');
+          return;
+        }
+
+        if (!funcEncontrado.ativo) {
+          setErroLogin('Este usuário está inativo no sistema. Procure o administrador da loja.');
+          return;
+        }
+
+        // Define o usuário autenticado na sessão
+        setUsuarioAtual(funcEncontrado);
+        localStorage.setItem('opticsys_logged_user_id', funcEncontrado.id);
+
+        const lojaDoFunc = lojas.find(l => l.id === funcEncontrado.loja_id);
+        if (lojaDoFunc) {
+          setLojaAtiva(lojaDoFunc);
+        }
+
+        onSuccess();
+        return;
+      }
+
+      // 2. Se for admin da loja ativa ou primeiro login
+      const lojaPorEmail = lojas.find(l => l.email.toLowerCase() === emailLimpo);
+      if (lojaPorEmail) {
+        const adminFunc = funcionarios.find(f => f.loja_id === lojaPorEmail.id && f.cargo === 'ADMIN') || funcionarios[0];
+        if (adminFunc) {
+          setUsuarioAtual(adminFunc);
+          localStorage.setItem('opticsys_logged_user_id', adminFunc.id);
+        }
+        setLojaAtiva(lojaPorEmail);
+        onSuccess();
+        return;
+      }
+
+      // Se não encontrou usuário exato
+      setErroLogin('Usuário não encontrado. Verifique suas credenciais de acesso.');
+    }, 400);
   };
 
   // Abrir Modal de Recuperação

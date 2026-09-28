@@ -25,8 +25,11 @@ import { WipelisMasterPortal } from './pages/WipelisMasterPortal';
 import { LoginTenant } from './pages/LoginTenant';
 import { SupportBotWidget } from './components/common/SupportBotWidget';
 import { TenantPlan } from './types';
+import { useAuthAndTenant } from './context/AuthAndTenantContext';
+import { ShieldAlert } from 'lucide-react';
 
 const MainApp: React.FC = () => {
+  const { usuarioAtual } = useAuthAndTenant();
   const [currentView, setCurrentView] = useState<'APP' | 'LANDING' | 'LOGIN' | 'REGISTER' | 'TERMOS' | 'MASTER'>(() => {
     if (window.location.hash === '#master' || window.location.hash === '#wipelis') {
       return 'MASTER';
@@ -39,6 +42,43 @@ const MainApp: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isNovaOSOpen, setIsNovaOSOpen] = useState<boolean>(false);
   const [selectedPlanForTrial, setSelectedPlanForTrial] = useState<TenantPlan>('pro');
+
+  const isTabAllowed = (tabId: string): boolean => {
+    if (!usuarioAtual) return true;
+    if (usuarioAtual.cargo === 'ADMIN') return true;
+
+    if (usuarioAtual.cargo === 'VENDEDOR') {
+      const allowedVendedor = ['dashboard', 'clientes', 'produtos', 'receitas', 'orcamentos', 'os', 'pdv', 'agenda', 'zapotica'];
+      if (!allowedVendedor.includes(tabId)) {
+        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      }
+      return true;
+    }
+
+    if (usuarioAtual.cargo === 'OPTOMETRISTA') {
+      const allowedOpto = ['dashboard', 'clientes', 'receitas', 'agenda', 'zapotica'];
+      return allowedOpto.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+    }
+
+    if (usuarioAtual.cargo === 'TECNICO_MONTAGEM') {
+      const allowedTec = ['dashboard', 'os', 'laboratorios', 'produtos'];
+      return allowedTec.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+    }
+
+    if (usuarioAtual.cargo === 'GERENTE') {
+      const restrictedGerente = ['assinatura', 'configuracoes'];
+      if (restrictedGerente.includes(tabId)) {
+        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      }
+      return true;
+    }
+
+    if (usuarioAtual.permissoes && usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes] !== undefined) {
+      return usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes];
+    }
+
+    return true;
+  };
 
   // Atalho de Teclado Secreto (Ctrl + Shift + W) para abrir o Painel Master Wipelis
   React.useEffect(() => {
@@ -161,39 +201,61 @@ const MainApp: React.FC = () => {
 
         {/* Conteúdo Dinâmico por Aba da Ótica */}
         <main className="p-3 sm:p-4 md:p-6 flex-1 max-w-7xl w-full mx-auto pb-24 md:pb-16 min-w-0">
-          {currentTab === 'dashboard' && (
-            <Dashboard 
-              onNavigate={(tab) => setCurrentTab(tab)} 
-              onOpenNovaOS={() => {
-                setCurrentTab('os');
-                setIsNovaOSOpen(true);
-              }} 
-            />
-          )}
+          {!isTabAllowed(currentTab) ? (
+            <div className="p-8 max-w-lg mx-auto bg-white dark:bg-[#121216] border border-amber-300 dark:border-amber-900/50 rounded-2xl shadow-sm text-center space-y-3 mt-10">
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                Acesso Restrito ao Módulo
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                O seu perfil de usuário <strong>({usuarioAtual?.cargo || 'Colaborador'})</strong> não possui permissão para acessar esta área restrita da ótica.
+              </p>
+              <button
+                onClick={() => setCurrentTab('dashboard')}
+                className="mt-2 px-4 py-2 bg-[#0284C7] hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow-xs"
+              >
+                Voltar ao Painel Geral
+              </button>
+            </div>
+          ) : (
+            <>
+              {currentTab === 'dashboard' && (
+                <Dashboard 
+                  onNavigate={(tab) => setCurrentTab(tab)} 
+                  onOpenNovaOS={() => {
+                    setCurrentTab('os');
+                    setIsNovaOSOpen(true);
+                  }} 
+                />
+              )}
 
-          {currentTab === 'clientes' && <Clientes />}
-          {currentTab === 'receitas' && <Receitas />}
-          {currentTab === 'orcamentos' && <Orcamentos />}
-          
-          {currentTab === 'os' && (
-            <OrdensServico 
-              isNovaOSOpen={isNovaOSOpen} 
-              setIsNovaOSOpen={setIsNovaOSOpen} 
-            />
-          )}
+              {currentTab === 'clientes' && <Clientes />}
+              {currentTab === 'receitas' && <Receitas />}
+              {currentTab === 'orcamentos' && <Orcamentos />}
+              
+              {currentTab === 'os' && (
+                <OrdensServico 
+                  isNovaOSOpen={isNovaOSOpen} 
+                  setIsNovaOSOpen={setIsNovaOSOpen} 
+                />
+              )}
 
-          {currentTab === 'pdv' && <PDV />}
-          {currentTab === 'agenda' && <Agenda />}
-          {currentTab === 'zapotica' && <ZapOtica />}
-          {currentTab === 'produtos' && <ProdutosEstoque />}
-          {currentTab === 'laboratorios' && <Laboratorios />}
-          {currentTab === 'financeiro' && <Financeiro />}
-          {currentTab === 'fiscal' && (
-            <ModuloFiscal onNavigateToAssinatura={() => setCurrentTab('assinatura')} />
+              {currentTab === 'pdv' && <PDV />}
+              {currentTab === 'agenda' && <Agenda />}
+              {currentTab === 'zapotica' && <ZapOtica />}
+              {currentTab === 'produtos' && <ProdutosEstoque />}
+              {currentTab === 'laboratorios' && <Laboratorios />}
+              {currentTab === 'financeiro' && <Financeiro />}
+              {currentTab === 'fiscal' && (
+                <ModuloFiscal onNavigateToAssinatura={() => setCurrentTab('assinatura')} />
+              )}
+              {currentTab === 'cadastros' && <Cadastros />}
+              {currentTab === 'assinatura' && <Assinatura />}
+              {currentTab === 'configuracoes' && <Configuracoes />}
+            </>
           )}
-          {currentTab === 'cadastros' && <Cadastros />}
-          {currentTab === 'assinatura' && <Assinatura />}
-          {currentTab === 'configuracoes' && <Configuracoes />}
         </main>
       </div>
 

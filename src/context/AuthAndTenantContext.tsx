@@ -39,24 +39,9 @@ import {
 
 const OPTICSYS_SYSTEM_VERSION = '2.0.0-operational';
 
-// Auto-limpeza de dados de demonstração na primeira inicialização da versão operacional
+// Marcação de versão sem apagar cadastros do usuário
 if (typeof window !== 'undefined') {
-  const currentVer = localStorage.getItem('opticsys_system_version');
-  if (currentVer !== OPTICSYS_SYSTEM_VERSION) {
-    localStorage.removeItem('opticsys_clientes');
-    localStorage.removeItem('opticsys_receitas');
-    localStorage.removeItem('opticsys_os');
-    localStorage.removeItem('opticsys_produtos');
-    localStorage.removeItem('opticsys_laboratorios');
-    localStorage.removeItem('opticsys_vendas');
-    localStorage.removeItem('opticsys_transacoes');
-    localStorage.removeItem('opticsys_leads_saas');
-    localStorage.removeItem('opticsys_tenants_saas');
-    localStorage.removeItem('opticsys_lojas');
-    localStorage.removeItem('opticsys_funcionarios');
-    localStorage.removeItem('opticsys_turnos_caixa');
-    localStorage.removeItem('opticsys_refacoes_os');
-    localStorage.removeItem('opticsys_trocas_devolucoes');
+  if (!localStorage.getItem('opticsys_system_version')) {
     localStorage.setItem('opticsys_system_version', OPTICSYS_SYSTEM_VERSION);
   }
 }
@@ -906,21 +891,31 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       certificado_a1_status: 'PENDENTE'
     };
 
-    setLeadsSaaS(prev => [novoLead, ...prev]);
-    setTenantsSaaS(prev => [novoTenant, ...prev]);
-    // ISOLAMENTO MULTI-TENANT:
-    // O novo cliente tem sua própria ótica isolada, não herdando o template 'loja-matriz' ou lojas de outras contas
-    setLojas([novaLoja]);
-    setFuncionarios([novoAdmin]);
+    setLeadsSaaS(prev => [novoLead, ...prev.filter(l => l.email !== dados.email)]);
+    setTenantsSaaS(prev => [novoTenant, ...prev.filter(t => t.responsavel_email !== dados.email)]);
+    
+    // Define a nova ótica como ativa imediatamente
+    setLojas(prev => [novaLoja, ...prev.filter(l => l.id !== novaLojaId && l.email !== dados.email)]);
+    setFuncionarios(prev => [novoAdmin, ...prev.filter(f => f.id !== novoAdmin.id && f.email !== dados.email)]);
     setLojaAtivaId(novaLojaId);
     setUsuarioAtual(novoAdmin);
 
-    localStorage.setItem('opticsys_lojas', JSON.stringify([novaLoja]));
-    localStorage.setItem('opticsys_funcionarios', JSON.stringify([novoAdmin]));
-    localStorage.setItem('opticsys_active_loja_id', novaLojaId);
-    sessionStorage.setItem('opticsys_is_authenticated', 'true');
-    sessionStorage.setItem('opticsys_logged_user_id', novoAdmin.id);
-    sessionStorage.setItem('opticsys_active_loja_id', novaLojaId);
+    try {
+      const savedLojasRaw = localStorage.getItem('opticsys_lojas');
+      const savedLojas: Loja[] = savedLojasRaw ? JSON.parse(savedLojasRaw) : INITIAL_LOJAS;
+      localStorage.setItem('opticsys_lojas', JSON.stringify([novaLoja, ...savedLojas.filter(l => l.id !== novaLojaId && l.email !== dados.email)]));
+
+      const savedFuncsRaw = localStorage.getItem('opticsys_funcionarios');
+      const savedFuncs: Funcionario[] = savedFuncsRaw ? JSON.parse(savedFuncsRaw) : INITIAL_FUNCIONARIOS;
+      localStorage.setItem('opticsys_funcionarios', JSON.stringify([novoAdmin, ...savedFuncs.filter(f => f.id !== novoAdmin.id && f.email !== dados.email)]));
+
+      localStorage.setItem('opticsys_active_loja_id', novaLojaId);
+      sessionStorage.setItem('opticsys_is_authenticated', 'true');
+      sessionStorage.setItem('opticsys_logged_user_id', novoAdmin.id);
+      sessionStorage.setItem('opticsys_active_loja_id', novaLojaId);
+    } catch (e) {
+      console.warn('Persistência local storage:', e);
+    }
 
     return novaLojaId;
   };

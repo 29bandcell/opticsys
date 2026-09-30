@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuthAndTenant } from '../../context/AuthAndTenantContext';
+import { PupilometroDigitalModal } from '../common/PupilometroDigitalModal';
 
 interface OnboardingTrialBannerProps {
   onNavigate: (tab: string) => void;
@@ -26,12 +27,13 @@ export const OnboardingTrialBanner: React.FC<OnboardingTrialBannerProps> = ({
 }) => {
   const { lojaAtiva, ordensServico, produtos, clientes } = useAuthAndTenant();
   const [oculto, setOculto] = useState(false);
+  const [isPupilometroOpen, setIsPupilometroOpen] = useState(false);
 
   // Calcula o progresso real com base nos dados cadastrados
   const passo1Concluido = true; // WhatsApp pronto/conectado
   const passo2Concluido = produtos.length > 0; // Cadastrou produto
   const passo3Concluido = ordensServico.length > 0; // Emitiu OS
-  const passo4Concluido = clientes.some(c => c.dnp_od && c.dnp_od > 0); // Pupilômetro usado
+  const passo4Concluido = clientes.some(c => (c.dnp_od && c.dnp_od > 0) || (c.altura_od && c.altura_od > 0)); // Pupilômetro usado
 
   const tarefas = [
     {
@@ -66,7 +68,7 @@ export const OnboardingTrialBanner: React.FC<OnboardingTrialBannerProps> = ({
       titulo: '4. Usar Pupilômetro Digital',
       sub: 'Meça a DNP e Altura usando a câmera',
       concluido: passo4Concluido,
-      acao: () => onNavigate('receitas'),
+      acao: () => setIsPupilometroOpen(true),
       icone: Eye
     }
   ];
@@ -174,6 +176,12 @@ export const OnboardingTrialBanner: React.FC<OnboardingTrialBannerProps> = ({
             </button>
           </div>
         )}
+
+        {/* Modal do Pupilômetro Digital */}
+        <PupilometroDigitalModal
+          isOpen={isPupilometroOpen}
+          onClose={() => setIsPupilometroOpen(false)}
+        />
 
       </div>
     </div>

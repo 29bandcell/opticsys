@@ -13,10 +13,12 @@ import {
   Smartphone, 
   Menu,
   X,
-  LogOut
+  LogOut,
+  Eye
 } from 'lucide-react';
 import { useAuthAndTenant } from '../../context/AuthAndTenantContext';
 import { SimuladorLentesModal } from '../common/SimuladorLentesModal';
+import { PupilometroDigitalModal } from '../common/PupilometroDigitalModal';
 
 interface NavbarProps {
   onNavigate: (tab: string) => void;
@@ -44,6 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   } = useAuthAndTenant();
 
   const [isSimuladorOpen, setIsSimuladorOpen] = useState(false);
+  const [isPupilometroOpen, setIsPupilometroOpen] = useState(false);
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
@@ -128,6 +131,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="Buscar"
           >
             <Search className="w-4 h-4" />
+          </button>
+
+          {/* Botão Pupilômetro Digital */}
+          <button
+            onClick={() => setIsPupilometroOpen(true)}
+            className="hidden sm:flex bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black px-2.5 py-1.5 rounded-lg text-xs items-center gap-1 shadow-xs transition-all active:scale-95"
+            title="Abrir Pupilômetro Digital (DNP e Altura)"
+          >
+            <Eye className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden md:inline">Pupilômetro</span>
           </button>
 
           {/* Botão Simulador de Lentes */}
@@ -229,6 +242,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <SimuladorLentesModal 
           isOpen={isSimuladorOpen}
           onClose={() => setIsSimuladorOpen(false)} 
+        />
+      )}
+
+      {/* Modal Pupilômetro Digital */}
+      {isPupilometroOpen && (
+        <PupilometroDigitalModal
+          isOpen={isPupilometroOpen}
+          onClose={() => setIsPupilometroOpen(false)}
         />
       )}
     </>

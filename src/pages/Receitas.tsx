@@ -8,18 +8,21 @@ import {
   Send, 
   CheckCircle, 
   AlertCircle,
-  FileCheck
+  FileCheck,
+  Camera
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { PrescricaoGrade } from '../components/optica/PrescricaoGrade';
 import { ReceitaOptica } from '../types';
 import { Badge } from '../components/common/Badge';
+import { PupilometroDigitalModal } from '../components/common/PupilometroDigitalModal';
 
 export const Receitas: React.FC = () => {
   const { receitas, clientes, adicionarReceita, medicos } = useAuthAndTenant();
   
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPupilometroOpen, setIsPupilometroOpen] = useState(false);
   const [receitaVisualizando, setReceitaVisualizando] = useState<ReceitaOptica | null>(null);
 
   // Form State para nova receita
@@ -122,12 +125,21 @@ export const Receitas: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="neo-button-primary !py-2 text-xs flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> Cadastrar Nova Receita
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsPupilometroOpen(true)}
+            className="px-3.5 py-2 text-xs font-bold bg-[#0284C7] hover:bg-sky-600 text-white rounded-lg flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+          >
+            <Camera className="w-4 h-4" /> Pupilômetro Digital
+          </button>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="neo-button-primary !py-2 text-xs flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Cadastrar Nova Receita
+          </button>
+        </div>
       </div>
 
       {/* Lista de Receitas e Visualizador */}
@@ -414,6 +426,23 @@ export const Receitas: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal do Pupilômetro Digital */}
+      <PupilometroDigitalModal
+        isOpen={isPupilometroOpen}
+        onClose={() => setIsPupilometroOpen(false)}
+        clienteIdInicial={novoClienteId}
+        pacienteNomeInicial={clientes.find(c => c.id === novoClienteId)?.nome}
+        onAplicarMedidas={(medidas) => {
+          setGraus(prev => ({
+            ...prev,
+            od_dnp: medidas.dnp_od,
+            oe_dnp: medidas.dnp_oe,
+            od_altura: medidas.altura_od,
+            oe_altura: medidas.altura_oe
+          }));
+        }}
+      />
 
     </div>
   );

@@ -36,7 +36,7 @@ const MainApp: React.FC = () => {
     }
     const isAuth = sessionStorage.getItem('opticsys_is_authenticated') === 'true';
     if (!isAuth) {
-      return 'LOGIN';
+      return 'LANDING';
     }
     return 'APP';
   });

@@ -16,7 +16,7 @@ import { ReceitaOptica } from '../types';
 import { Badge } from '../components/common/Badge';
 
 export const Receitas: React.FC = () => {
-  const { receitas, clientes, adicionarReceita } = useAuthAndTenant();
+  const { receitas, clientes, adicionarReceita, medicos } = useAuthAndTenant();
   
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -291,13 +291,40 @@ export const Receitas: React.FC = () => {
                 </div>
               </div>
 
+              {/* Seletor Rápido de Prescritor Cadastrado */}
+              {medicos.length > 0 && (
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                    Selecionar Prescritor Cadastrado:
+                  </label>
+                  <select
+                    onChange={e => {
+                      const m = medicos.find(med => med.id === e.target.value);
+                      if (m) {
+                        setMedico(m.nome);
+                        setRegistro(m.registro);
+                        setTipoPrescritor(m.tipo);
+                      }
+                    }}
+                    className="neo-select w-full font-semibold"
+                  >
+                    <option value="">(Digitar manualmente abaixo ou selecionar da lista...)</option>
+                    {medicos.map(m => (
+                      <option key={m.id} value={m.id}>
+                        🩺 {m.nome} • {m.tipo === 'OPTOMETRISTA' ? 'Optometrista' : 'Oftalmologista'} ({m.registro})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Médico / Optometrista *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Dr. Nome do Médico"
+                    placeholder="Dr(a). Nome do Médico"
                     value={medico}
                     onChange={e => setMedico(e.target.value)}
                     className="neo-input"
@@ -308,7 +335,7 @@ export const Receitas: React.FC = () => {
                   <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Registro (CRM / CROO)</label>
                   <input
                     type="text"
-                    placeholder="CRM-SP 123456"
+                    placeholder="CRM-CE 12345 / CROO"
                     value={registro}
                     onChange={e => setRegistro(e.target.value)}
                     className="neo-input font-mono"
@@ -322,8 +349,8 @@ export const Receitas: React.FC = () => {
                     onChange={e => setTipoPrescritor(e.target.value as any)}
                     className="neo-select"
                   >
-                    <option value="OFTALMOLOGISTA">Oftalmologista</option>
                     <option value="OPTOMETRISTA">Optometrista</option>
+                    <option value="OFTALMOLOGISTA">Oftalmologista</option>
                   </select>
                 </div>
               </div>

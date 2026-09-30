@@ -18,8 +18,11 @@ import {
   MovimentacaoCaixa,
   RefacaoOS,
   TrocaDevolucaoItem,
-  InteracaoCRMLead
+  InteracaoCRMLead,
+  MedicoPrescritor,
+  AgendamentoConsulta
 } from '../types';
+import { evolutionService } from '../services/evolutionApi';
 import {
   INITIAL_LOJAS,
   INITIAL_FUNCIONARIOS,
@@ -157,6 +160,19 @@ interface AuthAndTenantContextType {
   realizarVendaPDV: (vendaData: Omit<VendaPDV, 'id' | 'loja_id' | 'numero_venda' | 'data_venda'>) => VendaPDV;
   adicionarTransacao: (tra: Omit<TransacaoFinanceira, 'id' | 'loja_id'>) => void;
   limparTodosOsDadosLocais: () => void;
+
+  // Médicos e Optometristas Prescritores
+  medicos: MedicoPrescritor[];
+  adicionarMedico: (medico: Omit<MedicoPrescritor, 'id' | 'loja_id'>) => MedicoPrescritor;
+  atualizarMedico: (id: string, dados: Partial<MedicoPrescritor>) => void;
+  removerMedico: (id: string) => void;
+
+  // Agendamentos de Consultas & Gabinete do Optometrista
+  agendamentos: AgendamentoConsulta[];
+  adicionarAgendamento: (ag: Omit<AgendamentoConsulta, 'id' | 'loja_id' | 'created_at'>, autoNotificarWhatsApp?: boolean) => Promise<AgendamentoConsulta>;
+  atualizarStatusAgendamento: (id: string, status: AgendamentoConsulta['status'], extras?: Partial<AgendamentoConsulta>) => void;
+  removerAgendamento: (id: string) => void;
+  notificarMedicoWhatsApp: (agendamentoId: string) => Promise<{ success: boolean; message: string }>;
   
   // UI Helpers
   isDark: boolean;
@@ -258,6 +274,18 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Médicos e Optometristas Prescritores
+  const [medicos, setMedicos] = useState<MedicoPrescritor[]>(() => {
+    const saved = localStorage.getItem('opticsys_medicos');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Agendamentos de Consultas & Gabinete do Optometrista
+  const [agendamentos, setAgendamentos] = useState<AgendamentoConsulta[]>(() => {
+    const saved = localStorage.getItem('opticsys_agenda');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('opticsys_dark') === 'true';
   });
@@ -327,6 +355,14 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem('opticsys_trocas_devolucoes', JSON.stringify(trocasDevolucoes));
   }, [trocasDevolucoes]);
 
+  useEffect(() => {
+    localStorage.setItem('opticsys_medicos', JSON.stringify(medicos));
+  }, [medicos]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_agenda', JSON.stringify(agendamentos));
+  }, [agendamentos]);
+
   // Auto-limpeza de lojas placeholder quando existe uma loja real cadastrada pelo usuário
   useEffect(() => {
     if (lojas.length > 1) {
@@ -388,6 +424,8 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem('opticsys_turnos_caixa');
     localStorage.removeItem('opticsys_refacoes_os');
     localStorage.removeItem('opticsys_trocas_devolucoes');
+    localStorage.removeItem('opticsys_medicos');
+    localStorage.removeItem('opticsys_agenda');
     setClientes([]);
     setReceitas([]);
     setOrdensServico([]);
@@ -400,6 +438,8 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     setTurnosCaixa([]);
     setRefacoesOS([]);
     setTrocasDevolucoes([]);
+    setMedicos([]);
+    setAgendamentos([]);
   };
 
   // Turno de Caixa Ativo da Loja
@@ -1141,6 +1181,151 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransacoes(prev => [novaTra, ...prev]);
   };
 
+  // Médicos e Optometristas Prescritores
+  const adicionarMedico = (dados: Omit<MedicoPrescritor, 'id' | 'loja_id'>): MedicoPrescritor => {
+    const novo: MedicoPrescritor = {
+      ...dados,
+      id: `med-${Date.now()}`,
+      loja_id: lojaAtiva.id
+    };
+    setMedicos(prev => [novo, ...prev]);
+    return novo;
+  };
+
+  const atualizarMedico = (id: string, dados: Partial<MedicoPrescritor>) => {
+    setMedicos(prev => prev.map(m => m.id === id ? { ...m, ...dados } : m));
+  };
+
+  const removerMedico = (id: string) => {
+    setMedicos(prev => prev.filter(m => m.id !== id));
+  };
+
+  // Notificação via WhatsApp do Médico com Ficha Completa do Paciente
+  const notificarMedicoWhatsApp = async (agendamentoId: string): Promise<{ success: boolean; message: string }> => {
+    const ag = agendamentos.find(a => a.id === agendamentoId);
+    if (!ag) return { success: false, message: 'Agendamento não encontrado.' };
+
+    // Identificar telefone do médico ou optometrista
+    let telMedico = '';
+    let nomeMedico = ag.profissional;
+
+    if (ag.profissional_id) {
+      const medEncontrado = medicos.find(m => m.id === ag.profissional_id);
+      if (medEncontrado) {
+        telMedico = medEncontrado.telefone;
+        nomeMedico = medEncontrado.nome;
+      } else {
+        const funcEncontrado = funcionarios.find(f => f.id === ag.profissional_id);
+        if (funcEncontrado) {
+          telMedico = funcEncontrado.telefone || '';
+          nomeMedico = funcEncontrado.nome;
+        }
+      }
+    }
+
+    if (!telMedico) {
+      // Tenta achar por nome nos médicos cadastrados
+      const medPorNome = medicos.find(m => ag.profissional.toLowerCase().includes(m.nome.toLowerCase()) || m.nome.toLowerCase().includes(ag.profissional.toLowerCase()));
+      if (medPorNome) {
+        telMedico = medPorNome.telefone;
+      } else {
+        const funcPorNome = funcionarios.find(f => ag.profissional.toLowerCase().includes(f.nome.toLowerCase()) || f.nome.toLowerCase().includes(ag.profissional.toLowerCase()));
+        if (funcPorNome) {
+          telMedico = funcPorNome.telefone || '';
+        }
+      }
+    }
+
+    // Buscar histórico e dados completos do paciente
+    const paciente = ag.cliente_id ? clientes.find(c => c.id === ag.cliente_id) : null;
+    const receitasPaciente = paciente ? receitas.filter(r => r.cliente_id === paciente.id) : [];
+    const ultimaReceita = receitasPaciente.length > 0 ? receitasPaciente[0] : null;
+
+    let historicoGrau = 'Primeira consulta na loja (Sem histórico cadastrado).';
+    if (ultimaReceita) {
+      const od = `OD: Esf ${ultimaReceita.od_longe.esferico > 0 ? '+' : ''}${ultimaReceita.od_longe.esferico.toFixed(2)} Cil ${ultimaReceita.od_longe.cilindrico.toFixed(2)} Eixo ${ultimaReceita.od_longe.eixo}°`;
+      const oe = `OE: Esf ${ultimaReceita.oe_longe.esferico > 0 ? '+' : ''}${ultimaReceita.oe_longe.esferico.toFixed(2)} Cil ${ultimaReceita.oe_longe.cilindrico.toFixed(2)} Eixo ${ultimaReceita.oe_longe.eixo}°`;
+      const ad = ultimaReceita.adicao ? ` Ad: +${ultimaReceita.adicao.toFixed(2)}` : '';
+      historicoGrau = `Último exame em ${new Date(ultimaReceita.data_emissao).toLocaleDateString('pt-BR')} (${od} | ${oe}${ad})`;
+    }
+
+    const dataFormatada = ag.data ? new Date(ag.data + 'T00:00:00').toLocaleDateString('pt-BR') : ag.data;
+
+    const textoNotificacao = 
+      `🩺 *OpticSys • Ficha de Agendamento Clínico*\n\n` +
+      `Olá, *${nomeMedico}*! Há um novo agendamento marcado para seu atendimento na *${lojaAtiva.nome_fantasia}*:\n\n` +
+      `👤 *Paciente:* ${ag.paciente_nome}\n` +
+      `📱 *WhatsApp Paciente:* ${ag.telefone || 'Não informado'}\n` +
+      `🎂 *Nascimento / Idade:* ${paciente?.data_nascimento || ag.data_nascimento || 'Não informada'}\n` +
+      `🏠 *Cidade / Bairro:* ${paciente?.cidade ? `${paciente.cidade} - ${paciente.uf || 'CE'}` : 'Morada Nova - CE'}\n` +
+      `📅 *Data & Horário:* ${dataFormatada} às ${ag.horario}\n` +
+      `🔬 *Tipo de Exame:* ${ag.tipo}\n` +
+      `📝 *Queixa / Motivo:* ${ag.observacoes || 'Exame de vista / refração de rotina.'}\n` +
+      `👓 *Histórico Anterior:* ${historicoGrau}\n\n` +
+      `📋 *Ficha pronta no seu Gabinete OpticSys.* Tenha um excelente atendimento!`;
+
+    const instanceLoja = lojaAtiva.nome_fantasia.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'opticsys_matriz';
+
+    let enviado = false;
+    if (telMedico && telMedico.replace(/\D/g, '').length >= 10) {
+      try {
+        enviado = await evolutionService.enviarMensagemTexto(instanceLoja, telMedico, textoNotificacao);
+      } catch (e) {
+        console.warn('Erro ao disparar WhatsApp do médico via Evolution API:', e);
+      }
+    }
+
+    if (!enviado && telMedico) {
+      const fone = telMedico.replace(/\D/g, '');
+      const encoded = encodeURIComponent(textoNotificacao);
+      window.open(`https://wa.me/55${fone}?text=${encoded}`, '_blank');
+      enviado = true;
+    }
+
+    // Atualiza status de notificado
+    setAgendamentos(prev => prev.map(a => a.id === agendamentoId ? {
+      ...a,
+      notificado_medico: true,
+      data_notificacao_medico: new Date().toISOString()
+    } : a));
+
+    return { 
+      success: true, 
+      message: telMedico ? `Ficha enviada com sucesso para o WhatsApp do Dr(a) (${telMedico})!` : `Agendamento registrado. Telefone do médico não informado para disparo automático.` 
+    };
+  };
+
+  const adicionarAgendamento = async (
+    agData: Omit<AgendamentoConsulta, 'id' | 'loja_id' | 'created_at'>,
+    autoNotificarWhatsApp = true
+  ): Promise<AgendamentoConsulta> => {
+    const novo: AgendamentoConsulta = {
+      ...agData,
+      id: `ag-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      status: agData.status || 'CONFIRMADO',
+      created_at: new Date().toISOString()
+    };
+
+    setAgendamentos(prev => [novo, ...prev]);
+
+    if (autoNotificarWhatsApp) {
+      setTimeout(() => {
+        notificarMedicoWhatsApp(novo.id);
+      }, 300);
+    }
+
+    return novo;
+  };
+
+  const atualizarStatusAgendamento = (id: string, status: AgendamentoConsulta['status'], extras?: Partial<AgendamentoConsulta>) => {
+    setAgendamentos(prev => prev.map(a => a.id === id ? { ...a, status, ...(extras || {}) } : a));
+  };
+
+  const removerAgendamento = (id: string) => {
+    setAgendamentos(prev => prev.filter(a => a.id !== id));
+  };
+
   return (
     <AuthAndTenantContext.Provider value={{
       lojas,
@@ -1200,6 +1385,15 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       realizarVendaPDV,
       adicionarTransacao,
       limparTodosOsDadosLocais,
+      medicos: medicos.filter(m => m.loja_id === lojaAtiva.id),
+      adicionarMedico,
+      atualizarMedico,
+      removerMedico,
+      agendamentos: agendamentos.filter(a => a.loja_id === lojaAtiva.id),
+      adicionarAgendamento,
+      atualizarStatusAgendamento,
+      removerAgendamento,
+      notificarMedicoWhatsApp,
       isDark,
       toggleDarkMode
     }}>

@@ -81,6 +81,40 @@ export interface GrauOlho {
   base_prisma?: 'SUPERIOR' | 'INFERIOR' | 'NASAL' | 'TEMPORAL';
 }
 
+export interface MedicoPrescritor {
+  id: string;
+  loja_id: string;
+  nome: string;
+  registro: string; // CRM 12345-SP ou CROO 9876
+  tipo: 'OFTALMOLOGISTA' | 'OPTOMETRISTA';
+  especialidade?: string;
+  consultorio?: string;
+  telefone: string;
+  email?: string;
+  notificar_whatsapp?: boolean;
+}
+
+export interface AgendamentoConsulta {
+  id: string;
+  loja_id: string;
+  cliente_id?: string;
+  paciente_nome: string;
+  telefone: string;
+  cpf?: string;
+  data_nascimento?: string;
+  data: string;
+  horario: string;
+  profissional_id?: string;
+  profissional: string; // Nome do médico ou optometrista
+  tipo: string;
+  status: 'AGENDADO' | 'CONFIRMADO' | 'EM_ATENDIMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  observacoes?: string;
+  notificado_medico?: boolean;
+  data_notificacao_medico?: string;
+  receita_gerada_id?: string;
+  created_at: string;
+}
+
 export interface ReceitaOptica {
   id: string;
   loja_id: string;

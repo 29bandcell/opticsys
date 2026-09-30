@@ -232,7 +232,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         
         <div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#0B3B60]">
-            Somos um software criado para ajudar à sua ótica <span className="font-extrabold text-[#0099FF]">crescer</span> ainda mais!
+            Somos um software criado para ajudar a sua ótica a <span className="font-extrabold text-[#0099FF]">crescer</span> ainda mais!
           </h2>
         </div>
 

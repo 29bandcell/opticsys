@@ -195,8 +195,7 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
 
     try {
       if (canalEnvio === 'WHATSAPP' && telFinal) {
-        await evolutionService.enviarMensagemTexto(
-          'opticsys-cloud-master',
+        await evolutionService.enviarMensagemSaaS(
           telFinal,
           mensagemTexto
         );

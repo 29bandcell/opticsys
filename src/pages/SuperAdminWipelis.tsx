@@ -34,24 +34,35 @@ import {
   Check
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
-import { LeadSaaS, TenantSaaS, StatusLead } from '../types';
+import { LeadSaaS, TenantSaaS, StatusLead, InteracaoCRMLead } from '../types';
 
 export const SuperAdminWipelis: React.FC = () => {
   const { 
     leadsSaaS, 
     tenantsSaaS, 
     adicionarLeadSaaS, 
-    atualizarStatusLead, 
-    atualizarTenantStatus, 
+    atualizarStatusLead,
+    adicionarInteracaoLead,
+    atualizarLeadCRM, 
+    atualizarTenantStatus,
+    atualizarTenantSaaS, 
     prorrogarTrialTenant,
     adicionarCotaNotasTenant,
     resetarCotaNotasTenant,
-    toggleEmissaoFiscalTenant
+    toggleEmissaoFiscalTenant,
+    exportarBackupCompleto
   } = useAuthAndTenant();
 
   const [abaAtiva, setAbaAtiva] = useState<'LEADS' | 'TENANTS' | 'FISCAL' | 'METRICAS' | 'REGUA' | 'WEBHOOKS'>('LEADS');
   const [filtroStatusLead, setFiltroStatusLead] = useState<string>('TODOS');
   const [termoBusca, setTermoBusca] = useState<string>('');
+  
+  // Modal de Histórico de Interações CRM do Lead
+  const [leadSelecionadoCRM, setLeadSelecionadoCRM] = useState<LeadSaaS | null>(null);
+  const [novoCanalInteracao, setNovoCanalInteracao] = useState<InteracaoCRMLead['canal']>('WHATSAPP');
+  const [novoResumoInteracao, setNovoResumoInteracao] = useState('');
+  const [proximaAcaoData, setProximaAcaoData] = useState('');
+  const [proximaAcaoDesc, setProximaAcaoDesc] = useState('');
   
   // Estado de Teste da API Fiscal Software House
   const [isPingingFiscal, setIsPingingFiscal] = useState(false);
@@ -253,6 +264,25 @@ export const SuperAdminWipelis: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const backupStr = exportarBackupCompleto();
+              const blob = new Blob([backupStr], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `backup_opticsys_master_${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              setSucessoAlerta('Backup completo do banco de dados e auditoria exportado com sucesso!');
+              setTimeout(() => setSucessoAlerta(null), 4000);
+            }}
+            className="text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700 px-3 py-2 rounded-md font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            title="Download completo do banco de dados em JSON estruturado"
+          >
+            <Download className="w-3.5 h-3.5 text-indigo-400" /> Backup Global JSON
+          </button>
+
           <button
             type="button"
             onClick={handleExportarCSV}
@@ -550,9 +580,22 @@ export const SuperAdminWipelis: React.FC = () => {
                           </select>
                         </td>
 
-                        {/* Ações de WhatsApp */}
+                        {/* Ações de WhatsApp e CRM */}
                         <td className="p-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLeadSelecionadoCRM(lead);
+                                setProximaAcaoData(lead.proxima_acao_data || '');
+                                setProximaAcaoDesc(lead.proxima_acao_descricao || '');
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-extrabold px-2.5 py-1.5 rounded flex items-center gap-1 transition-all shadow-xs"
+                              title="Histórico de interações e agendamento de próxima ação"
+                            >
+                              <History className="w-3.5 h-3.5" /> CRM ({lead.historico_interacoes?.length || 0})
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => abrirModalZap(lead, lead.status === 'TRIAL_EXPIRANDO' ? 'EXPIRANDO' : lead.status === 'TRIAL_EXPIRADO' ? 'FECHAMENTO' : 'BOAS_VINDAS')}
@@ -1758,6 +1801,138 @@ export const SuperAdminWipelis: React.FC = () => {
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Histórico CRM & Agendamento de Próxima Ação */}
+      {leadSelecionadoCRM && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-slate-200 dark:border-zinc-800 pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                  <History className="w-5 h-5 text-indigo-600" />
+                  CRM & Histórico de Interações
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {leadSelecionadoCRM.nome_otica} • Resp: <strong>{leadSelecionadoCRM.nome_responsavel}</strong> ({leadSelecionadoCRM.telefone})
+                </p>
+              </div>
+              <button
+                onClick={() => setLeadSelecionadoCRM(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Agendamento de Próxima Ação */}
+            <div className="p-3 bg-slate-50 dark:bg-zinc-900/60 rounded-xl border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+              <span className="font-bold text-slate-800 dark:text-zinc-200 block text-[11px] uppercase tracking-wider">
+                Próxima Ação Comercial
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={proximaAcaoData}
+                  onChange={e => setProximaAcaoData(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-xs font-mono"
+                />
+                <input
+                  type="text"
+                  placeholder="Ex: Ligar para tirar dúvidas de NFC-e"
+                  value={proximaAcaoDesc}
+                  onChange={e => setProximaAcaoDesc(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-xs"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  atualizarLeadCRM(leadSelecionadoCRM.id, {
+                    proxima_acao_data: proximaAcaoData,
+                    proxima_acao_descricao: proximaAcaoDesc
+                  });
+                  alert('Próxima ação comercial agendada com sucesso!');
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg text-[11px]"
+              >
+                Salvar Próxima Ação
+              </button>
+            </div>
+
+            {/* Formulário de Nova Interação */}
+            <div className="space-y-2 text-xs border-t border-slate-100 dark:border-zinc-800 pt-3">
+              <span className="font-bold text-slate-800 dark:text-zinc-200 block">Registrar Novo Contato / Interação:</span>
+              <div className="flex gap-2">
+                <select
+                  value={novoCanalInteracao}
+                  onChange={e => setNovoCanalInteracao(e.target.value as any)}
+                  className="bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-xs font-bold"
+                >
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="LIGACAO">Ligação</option>
+                  <option value="EMAIL">E-mail</option>
+                  <option value="REUNIAO_ONLINE">Reunião Online</option>
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="Resumo da conversa ou objeção levantada..."
+                  value={novoResumoInteracao}
+                  onChange={e => setNovoResumoInteracao(e.target.value)}
+                  className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-xs"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!novoResumoInteracao.trim()) return;
+                  adicionarInteracaoLead(leadSelecionadoCRM.id, {
+                    autor: 'Consultor Wipelis',
+                    canal: novoCanalInteracao,
+                    resumo: novoResumoInteracao.trim()
+                  });
+                  setNovoResumoInteracao('');
+                  alert('Interação registrada no histórico do Lead!');
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg text-xs"
+              >
+                + Adicionar ao Histórico
+              </button>
+            </div>
+
+            {/* Timeline de Interações Anteriores */}
+            <div className="space-y-2 text-xs border-t border-slate-100 dark:border-zinc-800 pt-3">
+              <span className="font-bold text-slate-800 dark:text-zinc-200 block">Histórico de Atendimentos:</span>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {leadSelecionadoCRM.historico_interacoes && leadSelecionadoCRM.historico_interacoes.length > 0 ? (
+                  leadSelecionadoCRM.historico_interacoes.map(int => (
+                    <div key={int.id} className="p-2.5 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-800 space-y-1">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400">{int.canal} • {int.autor}</span>
+                        <span className="text-slate-400 font-mono">{new Date(int.data).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <p className="text-slate-700 dark:text-zinc-300 text-[11px]">{int.resumo}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-400 italic text-[11px]">Nenhuma interação registrada ainda para este lead.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setLeadSelecionadoCRM(null)}
+                className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg font-bold text-xs"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

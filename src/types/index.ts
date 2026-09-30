@@ -199,7 +199,7 @@ export interface OrdemServicoOptica {
   // Fotos / Imagens Anexadas (até 5 fotos)
   fotos_os?: string[];
   
-  // Valores
+  // Valores & Financeiro da O.S.
   valor_armacao: number;
   valor_lentes: number;
   valor_tratamentos: number;
@@ -207,12 +207,29 @@ export interface OrdemServicoOptica {
   custo_laboratorio_estimado: number;
   valor_desconto: number;
   valor_total: number;
+  valor_sinal?: number;
+  valor_saldo?: number;
+  forma_pagamento_sinal?: string;
   
   // Prazos
   data_abertura: string;
   data_prometida: string;
   data_laboratorio_retorno?: string;
   data_entrega_efetiva?: string;
+  
+  // Controle de Qualidade & Retirada Técnica
+  checklist_conferencia?: {
+    dioptria_conferida: boolean;
+    dnp_altura_conferida: boolean;
+    eixo_base_alinhado: boolean;
+    limpeza_ajuste_plaquetas: boolean;
+    conferido_por?: string;
+    data_conferencia?: string;
+  };
+  comprovante_retirada_assinado?: boolean;
+  data_retirada_assinatura?: string;
+  nome_recebedor?: string;
+  documento_recebedor?: string;
   
   observacoes_internas?: string;
   created_at: string;
@@ -358,7 +375,23 @@ export interface NotaFiscalEntradaParsed {
   duplicatas: FaturaDuplicataXML[];
 }
 
-export type StatusLead = 'TRIAL_ATIVO' | 'TRIAL_EXPIRANDO' | 'TRIAL_EXPIRADO' | 'CONVERTIDO_CLIENTE' | 'PERDIDO';
+export type StatusLead = 
+  | 'NOVO_LEAD' 
+  | 'PRIMEIRO_CONTATO' 
+  | 'DEMO_AGENDADA' 
+  | 'TRIAL_ATIVO' 
+  | 'TRIAL_EXPIRANDO' 
+  | 'TRIAL_EXPIRADO' 
+  | 'CONVERTIDO_CLIENTE' 
+  | 'PERDIDO';
+
+export interface InteracaoCRMLead {
+  id: string;
+  data: string;
+  autor: string;
+  canal: 'WHATSAPP' | 'LIGACAO' | 'EMAIL' | 'REUNIAO_ONLINE';
+  resumo: string;
+}
 
 export interface LeadSaaS {
   id: string;
@@ -372,7 +405,12 @@ export interface LeadSaaS {
   data_cadastro: string;
   trial_dias_restantes: number;
   status: StatusLead;
-  origem: 'LANDING_PAGE' | 'INDICACAO' | 'ANUNCIO_INSTAGRAM' | 'WHATSAPP_DIRETO';
+  origem: 'LANDING_PAGE' | 'INDICACAO' | 'ANUNCIO_INSTAGRAM' | 'WHATSAPP_DIRETO' | 'EVENTO';
+  vendedor_responsavel?: string;
+  proxima_acao_data?: string;
+  proxima_acao_descricao?: string;
+  motivo_perda?: string;
+  historico_interacoes?: InteracaoCRMLead[];
   observacoes?: string;
   ultimo_contato?: string;
 }
@@ -394,6 +432,8 @@ export interface TenantSaaS {
   proximo_vencimento: string;
   total_filiais: number;
   total_usuarios: number;
+  limite_usuarios_plano?: number;
+  limite_filiais_plano?: number;
   // Gestão Fiscal Master (50 Notas / CNPJ)
   limite_notas_mes: number;
   notas_emitidas_mes: number;
@@ -401,4 +441,98 @@ export interface TenantSaaS {
   certificado_a1_status?: 'VALIDO' | 'EXPIRADO' | 'PENDENTE';
   certificado_a1_validade?: string;
   subconta_focus_id?: string;
+  historico_cobrancas?: {
+    id: string;
+    mes_referencia: string;
+    valor: number;
+    status: 'PAGO' | 'PENDENTE' | 'VENCIDO';
+    data_pagamento?: string;
+    metodo?: 'PIX' | 'BOLETO' | 'CARTAO';
+  }[];
 }
+
+// -------------------------------------------------------------
+// OPERAÇÃO ÓTICA: CAIXA, REFAÇÕES, TROCAS E AUDITORIA
+// -------------------------------------------------------------
+
+export interface MovimentacaoCaixa {
+  id: string;
+  loja_id: string;
+  tipo: 'SUPRIMENTO' | 'SANGRIA' | 'VENDA' | 'ESTORNO_DEVOLUCAO';
+  valor: number;
+  forma_pagamento: 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'CREDIARIO_PROPRIO';
+  descricao: string;
+  operador_nome: string;
+  data_hora: string;
+}
+
+export interface TurnoCaixa {
+  id: string;
+  loja_id: string;
+  operador_id: string;
+  operador_nome: string;
+  data_abertura: string;
+  data_fechamento?: string;
+  status: 'ABERTO' | 'FECHADO';
+  valor_abertura: number;
+  // Valores calculados pelo sistema
+  total_dinheiro_sistema: number;
+  total_pix_sistema: number;
+  total_cartao_debito_sistema: number;
+  total_cartao_credito_sistema: number;
+  total_crediario_sistema: number;
+  total_sangrias: number;
+  total_suprimentos: number;
+  // Valores contados na conferência cega de fechamento
+  dinheiro_informado?: number;
+  pix_informado?: number;
+  cartao_debito_informado?: number;
+  cartao_credito_informado?: number;
+  diferenca_apurada?: number;
+  observacoes_fechamento?: string;
+  movimentacoes: MovimentacaoCaixa[];
+}
+
+export type MotivoRefacaoOS = 
+  | 'ERRO_DIOPTRIA_RECEITA' 
+  | 'ERRO_MONTAGEM_LABORATORIO' 
+  | 'DEFEITO_BLOCO_LENTE' 
+  | 'RISCO_NAO_CONFORMIDADE' 
+  | 'EIXO_DESALINHADO' 
+  | 'ALTURA_DNP_INCORRETA'
+  | 'INSATISFACAO_PACIENTE';
+
+export interface RefacaoOS {
+  id: string;
+  loja_id: string;
+  os_id: string;
+  numero_os: number;
+  cliente_nome: string;
+  laboratorio_id?: string;
+  laboratorio_nome?: string;
+  motivo: MotivoRefacaoOS;
+  responsavel_custo: 'OTICA' | 'LABORATORIO' | 'CLIENTE';
+  custo_refacao: number;
+  data_solicitacao: string;
+  data_prevista_reentrega: string;
+  status: 'PENDENTE_ENVIO' | 'EM_PROCESSO' | 'CONCLUIDA' | 'CANCELADA';
+  observacoes: string;
+}
+
+export interface TrocaDevolucaoItem {
+  id: string;
+  loja_id: string;
+  cliente_id?: string;
+  cliente_nome: string;
+  venda_original_id?: string;
+  produto_devolvido_id?: string;
+  produto_devolvido_nome: string;
+  quantidade: number;
+  valor_credito: number;
+  motivo: string;
+  retornar_ao_estoque: boolean;
+  data_solicitacao: string;
+  status: 'VALE_EMITIDO' | 'UTILIZADO' | 'ESTORNADO';
+  codigo_vale: string;
+}
+

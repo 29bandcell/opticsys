@@ -13,15 +13,29 @@ import {
   Trash2,
   Receipt,
   Zap,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Upload,
+  Database,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 
 export const Configuracoes: React.FC = () => {
-  const { lojaAtiva } = useAuthAndTenant();
+  const { 
+    lojaAtiva,
+    importarClientesEmLote,
+    importarProdutosEmLote,
+    exportarBackupCompleto
+  } = useAuthAndTenant();
 
-  const [abaAtiva, setAbaAtiva] = useState<'LOJA' | 'COMISSOES' | 'PAGAMENTOS' | 'CONTAS' | 'CATEGORIAS' | 'ASAAS' | 'FOCUSNFE' | 'IMPRESSAO'>('LOJA');
+  const [abaAtiva, setAbaAtiva] = useState<'LOJA' | 'COMISSOES' | 'PAGAMENTOS' | 'CONTAS' | 'CATEGORIAS' | 'ASAAS' | 'FOCUSNFE' | 'IMPRESSAO' | 'MIGRACAO'>('LOJA');
   const [salvoSucesso, setSalvoSucesso] = useState(false);
+  
+  // Estado da Migração
+  const [textoClientesCSV, setTextoClientesCSV] = useState('');
+  const [textoProdutosCSV, setTextoProdutosCSV] = useState('');
+  const [resultadoImportacao, setResultadoImportacao] = useState<string | null>(null);
 
   // Formas de Pagamento com taxas
   const [formasPgto, setFormasPgto] = useState([
@@ -171,6 +185,15 @@ export const Configuracoes: React.FC = () => {
           }`}
         >
           <Printer className="w-3.5 h-3.5" /> Impressão Térmica
+        </button>
+
+        <button
+          onClick={() => setAbaAtiva('MIGRACAO')}
+          className={`px-3 py-1.5 rounded font-bold transition-all flex items-center gap-1.5 ${
+            abaAtiva === 'MIGRACAO' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100'
+          }`}
+        >
+          <Database className="w-3.5 h-3.5 text-indigo-400" /> Migração & Backup
         </button>
       </div>
 
@@ -402,6 +425,153 @@ export const Configuracoes: React.FC = () => {
                 </label>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ABA 8: MIGRAÇÃO & BACKUP COMPLETO */}
+        {abaAtiva === 'MIGRACAO' && (
+          <div className="bg-white dark:bg-[#121216] border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-xs space-y-6 text-xs">
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <Database className="w-4 h-4 text-indigo-600" />
+                Migração de Dados & Backup Completo (LGPD)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Importação rápida em lote de clientes e estoque do seu sistema legado, e download de cópia integral de segurança.
+              </p>
+            </div>
+
+            {resultadoImportacao && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 rounded-lg text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{resultadoImportacao}</span>
+              </div>
+            )}
+
+            {/* Exportação de Backup Completo */}
+            <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <strong className="block text-indigo-950 dark:text-indigo-200 text-sm">
+                  Exportar Backup Completo da Ótica (JSON Estruturado)
+                </strong>
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                  Baixe um arquivo seguro com todas as suas ordens de serviço, receitas, clientes, vendas e fluxo de caixa.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const dataStr = exportarBackupCompleto();
+                  const blob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `backup_${lojaAtiva.nome_fantasia.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                  setResultadoImportacao('Cópia de backup gerada e baixada com sucesso!');
+                  setTimeout(() => setResultadoImportacao(null), 4000);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-xs cursor-pointer shrink-0"
+              >
+                <Download className="w-4 h-4" /> Download Backup Completo
+              </button>
+            </div>
+
+            {/* Importação de Clientes em Lote */}
+            <div className="p-4 bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl space-y-3">
+              <div className="flex justify-between items-center">
+                <strong className="text-slate-900 dark:text-zinc-100 flex items-center gap-1.5 text-xs">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Importar Lista de Clientes / Pacientes
+                </strong>
+                <span className="text-[10px] text-slate-400 font-mono">Formato: Nome, Telefone, CPF, Cidade</span>
+              </div>
+
+              <textarea
+                rows={3}
+                placeholder="Exemplo (uma linha por cliente):&#10;Maria da Silva, (88) 98888-1111, 123.456.789-00, Morada Nova&#10;João Santos, (88) 99999-2222, 987.654.321-11, Limoeiro do Norte"
+                value={textoClientesCSV}
+                onChange={e => setTextoClientesCSV(e.target.value)}
+                className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-xs font-mono"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!textoClientesCSV.trim()) return;
+                  const linhas = textoClientesCSV.trim().split('\n');
+                  const clientesNovos = linhas.map(l => {
+                    const partes = l.split(',').map(p => p.trim());
+                    return {
+                      nome: partes[0] || 'Cliente Importado',
+                      telefone: partes[1] || '(88) 98888-0000',
+                      cpf: partes[2] || '000.000.000-00',
+                      cidade: partes[3] || 'Morada Nova',
+                      uf: 'CE',
+                      origem: 'IMPORTACAO_LOTE'
+                    };
+                  });
+
+                  const qtd = importarClientesEmLote(clientesNovos);
+                  setTextoClientesCSV('');
+                  setResultadoImportacao(`Sucesso: ${qtd} clientes importados para a sua ótica!`);
+                  setTimeout(() => setResultadoImportacao(null), 4000);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" /> Processar Importação de Clientes
+              </button>
+            </div>
+
+            {/* Importação de Produtos em Lote */}
+            <div className="p-4 bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl space-y-3">
+              <div className="flex justify-between items-center">
+                <strong className="text-slate-900 dark:text-zinc-100 flex items-center gap-1.5 text-xs">
+                  <FileSpreadsheet className="w-4 h-4 text-sky-600" /> Importar Estoque / Catálogo de Produtos
+                </strong>
+                <span className="text-[10px] text-slate-400 font-mono">Formato: Nome, Código Barras, Preço Custo, Preço Venda, Estoque</span>
+              </div>
+
+              <textarea
+                rows={3}
+                placeholder="Exemplo (uma linha por produto):&#10;Armação Ray-Ban Aviador Metal, 7891234567890, 150.00, 480.00, 5&#10;Solar Oakley Holbrook Preto, 7899876543210, 200.00, 650.00, 3"
+                value={textoProdutosCSV}
+                onChange={e => setTextoProdutosCSV(e.target.value)}
+                className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-xs font-mono"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!textoProdutosCSV.trim()) return;
+                  const linhas = textoProdutosCSV.trim().split('\n');
+                  const produtosNovos = linhas.map((l, idx) => {
+                    const partes = l.split(',').map(p => p.trim());
+                    return {
+                      nome: partes[0] || 'Produto Importado',
+                      codigo_barras: partes[1] || `789${Date.now()}${idx}`,
+                      codigo_referencia: `IMP-${idx + 1}`,
+                      tipo: 'ARMACAO_GRAU' as any,
+                      marca: 'Importada',
+                      preco_custo: parseFloat(partes[2]) || 50.00,
+                      preco_venda: parseFloat(partes[3]) || 150.00,
+                      estoque_atual: parseInt(partes[4]) || 1,
+                      estoque_minimo: 1,
+                      ativo: true
+                    };
+                  });
+
+                  const qtd = importarProdutosEmLote(produtosNovos);
+                  setTextoProdutosCSV('');
+                  setResultadoImportacao(`Sucesso: ${qtd} produtos importados para o catálogo!`);
+                  setTimeout(() => setResultadoImportacao(null), 4000);
+                }}
+                className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" /> Processar Importação de Produtos
+              </button>
+            </div>
+
           </div>
         )}
 

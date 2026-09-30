@@ -98,9 +98,8 @@ export const RegisterStore: React.FC<RegisterStoreProps> = ({
       `_Equipe OpticSys • Wipelis (88) 98882-2847_`;
 
     try {
-      // Dispara via Evolution API global com fallback inteligente para instâncias ativas
-      await evolutionService.enviarMensagemTexto(
-        'opticsys-cloud-master',
+      // Dispara via canal institucional master do SaaS (Wipelis/OpticSys)
+      await evolutionService.enviarMensagemSaaS(
         telDigitos,
         textoMensagem
       );

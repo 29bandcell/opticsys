@@ -13,7 +13,12 @@ import {
   TenantPlan,
   LeadSaaS, 
   TenantSaaS, 
-  StatusLead
+  StatusLead,
+  TurnoCaixa,
+  MovimentacaoCaixa,
+  RefacaoOS,
+  TrocaDevolucaoItem,
+  InteracaoCRMLead
 } from '../types';
 import {
   INITIAL_LOJAS,
@@ -46,6 +51,9 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('opticsys_tenants_saas');
     localStorage.removeItem('opticsys_lojas');
     localStorage.removeItem('opticsys_funcionarios');
+    localStorage.removeItem('opticsys_turnos_caixa');
+    localStorage.removeItem('opticsys_refacoes_os');
+    localStorage.removeItem('opticsys_trocas_devolucoes');
     localStorage.setItem('opticsys_system_version', OPTICSYS_SYSTEM_VERSION);
   }
 }
@@ -68,12 +76,44 @@ interface AuthAndTenantContextType {
   vendas: VendaPDV[];
   transacoes: TransacaoFinanceira[];
 
-  // SaaS Master / Wipelis Leads & Tenants
+  // Turnos e Operação de Caixa
+  turnosCaixa: TurnoCaixa[];
+  turnoCaixaAtivo: TurnoCaixa | null;
+  abrirTurnoCaixa: (valorAbertura: number) => TurnoCaixa;
+  fecharTurnoCaixa: (dados: {
+    dinheiroInformado: number;
+    pixInformado: number;
+    cartaoDebitoInformado: number;
+    cartaoCreditoInformado: number;
+    observacoes?: string;
+  }) => TurnoCaixa;
+  realizarSangria: (valor: number, descricao: string) => void;
+  realizarSuprimento: (valor: number, descricao: string) => void;
+
+  // Refações e Retrabalhos de Laboratório
+  refacoesOS: RefacaoOS[];
+  adicionarRefacaoOS: (refacao: Omit<RefacaoOS, 'id' | 'loja_id' | 'data_solicitacao' | 'status'>) => RefacaoOS;
+  atualizarStatusRefacao: (id: string, status: RefacaoOS['status']) => void;
+
+  // Trocas e Vale-Crédito
+  trocasDevolucoes: TrocaDevolucaoItem[];
+  registrarTrocaDevolucao: (troca: Omit<TrocaDevolucaoItem, 'id' | 'loja_id' | 'data_solicitacao' | 'status' | 'codigo_vale'>) => TrocaDevolucaoItem;
+  utilizarValeCredito: (codigoVale: string) => TrocaDevolucaoItem | null;
+
+  // Importação e Exportação de Dados
+  importarClientesEmLote: (clientesNovos: Omit<Cliente, 'id' | 'loja_id' | 'created_at'>[]) => number;
+  importarProdutosEmLote: (produtosNovos: Omit<Produto, 'id' | 'loja_id'>[]) => number;
+  exportarBackupCompleto: () => string;
+
+  // SaaS Master / CRM Wipelis Leads & Tenants
   leadsSaaS: LeadSaaS[];
   tenantsSaaS: TenantSaaS[];
   adicionarLeadSaaS: (lead: Omit<LeadSaaS, 'id' | 'data_cadastro' | 'trial_dias_restantes'>) => void;
   atualizarStatusLead: (leadId: string, status: StatusLead, obs?: string) => void;
+  adicionarInteracaoLead: (leadId: string, interacao: Omit<InteracaoCRMLead, 'id' | 'data'>) => void;
+  atualizarLeadCRM: (leadId: string, dados: Partial<LeadSaaS>) => void;
   atualizarTenantStatus: (tenantId: string, status: 'ATIVO' | 'TRIAL' | 'ATRASADO' | 'BLOQUEADO' | 'CANCELADO') => void;
+  atualizarTenantSaaS: (tenantId: string, dados: Partial<TenantSaaS>) => void;
   prorrogarTrialTenant: (tenantId: string, diasExtras?: number) => void;
   adicionarCotaNotasTenant: (tenantId: string, quantidadeExtra?: number) => void;
   resetarCotaNotasTenant: (tenantId: string) => void;
@@ -200,6 +240,24 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved ? JSON.parse(saved) : INITIAL_TENANTS_SAAS;
   });
 
+  // Operação de Caixa (Turnos, Sangrias, Suprimentos)
+  const [turnosCaixa, setTurnosCaixa] = useState<TurnoCaixa[]>(() => {
+    const saved = localStorage.getItem('opticsys_turnos_caixa');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Refações e Retrabalhos de Laboratório
+  const [refacoesOS, setRefacoesOS] = useState<RefacaoOS[]>(() => {
+    const saved = localStorage.getItem('opticsys_refacoes_os');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Trocas e Vale-Crédito
+  const [trocasDevolucoes, setTrocasDevolucoes] = useState<TrocaDevolucaoItem[]>(() => {
+    const saved = localStorage.getItem('opticsys_trocas_devolucoes');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('opticsys_dark') === 'true';
   });
@@ -256,6 +314,18 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem('opticsys_tenants_saas', JSON.stringify(tenantsSaaS));
   }, [tenantsSaaS]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_turnos_caixa', JSON.stringify(turnosCaixa));
+  }, [turnosCaixa]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_refacoes_os', JSON.stringify(refacoesOS));
+  }, [refacoesOS]);
+
+  useEffect(() => {
+    localStorage.setItem('opticsys_trocas_devolucoes', JSON.stringify(trocasDevolucoes));
+  }, [trocasDevolucoes]);
 
   // Auto-limpeza de lojas placeholder quando existe uma loja real cadastrada pelo usuário
   useEffect(() => {
@@ -315,6 +385,9 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem('opticsys_transacoes');
     localStorage.removeItem('opticsys_leads_saas');
     localStorage.removeItem('opticsys_tenants_saas');
+    localStorage.removeItem('opticsys_turnos_caixa');
+    localStorage.removeItem('opticsys_refacoes_os');
+    localStorage.removeItem('opticsys_trocas_devolucoes');
     setClientes([]);
     setReceitas([]);
     setOrdensServico([]);
@@ -324,15 +397,272 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransacoes([]);
     setLeadsSaaS([]);
     setTenantsSaaS([]);
+    setTurnosCaixa([]);
+    setRefacoesOS([]);
+    setTrocasDevolucoes([]);
   };
 
-  // Adicionar Lead captado na Landing Page ou Onboarding
+  // Turno de Caixa Ativo da Loja
+  const turnoCaixaAtivo = turnosCaixa.find(t => t.loja_id === lojaAtiva.id && t.status === 'ABERTO') || null;
+
+  const abrirTurnoCaixa = (valorAbertura: number): TurnoCaixa => {
+    if (turnoCaixaAtivo) {
+      return turnoCaixaAtivo;
+    }
+    const novoTurno: TurnoCaixa = {
+      id: `turno-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      operador_id: usuarioAtual.id,
+      operador_nome: usuarioAtual.nome,
+      data_abertura: new Date().toISOString(),
+      status: 'ABERTO',
+      valor_abertura: valorAbertura,
+      total_dinheiro_sistema: valorAbertura,
+      total_pix_sistema: 0,
+      total_cartao_debito_sistema: 0,
+      total_cartao_credito_sistema: 0,
+      total_crediario_sistema: 0,
+      total_sangrias: 0,
+      total_suprimentos: 0,
+      movimentacoes: [
+        {
+          id: `mov-${Date.now()}`,
+          loja_id: lojaAtiva.id,
+          tipo: 'SUPRIMENTO',
+          valor: valorAbertura,
+          forma_pagamento: 'DINHEIRO',
+          descricao: 'Fundo de troco / Abertura de caixa',
+          operador_nome: usuarioAtual.nome,
+          data_hora: new Date().toISOString()
+        }
+      ]
+    };
+    setTurnosCaixa(prev => [novoTurno, ...prev]);
+    return novoTurno;
+  };
+
+  const fecharTurnoCaixa = (dados: {
+    dinheiroInformado: number;
+    pixInformado: number;
+    cartaoDebitoInformado: number;
+    cartaoCreditoInformado: number;
+    observacoes?: string;
+  }): TurnoCaixa => {
+    if (!turnoCaixaAtivo) {
+      throw new Error('Não há caixa aberto no momento.');
+    }
+    const totalSistema = turnoCaixaAtivo.total_dinheiro_sistema + 
+      turnoCaixaAtivo.total_pix_sistema + 
+      turnoCaixaAtivo.total_cartao_debito_sistema + 
+      turnoCaixaAtivo.total_cartao_credito_sistema;
+    
+    const totalInformado = dados.dinheiroInformado + dados.pixInformado + dados.cartaoDebitoInformado + dados.cartaoCreditoInformado;
+    const diferencaApurada = totalInformado - totalSistema;
+
+    const turnoAtualizado: TurnoCaixa = {
+      ...turnoCaixaAtivo,
+      status: 'FECHADO',
+      data_fechamento: new Date().toISOString(),
+      dinheiro_informado: dados.dinheiroInformado,
+      pix_informado: dados.pixInformado,
+      cartao_debito_informado: dados.cartaoDebitoInformado,
+      cartao_credito_informado: dados.cartaoCreditoInformado,
+      diferenca_apurada: diferencaApurada,
+      observacoes_fechamento: dados.observacoes
+    };
+
+    setTurnosCaixa(prev => prev.map(t => t.id === turnoCaixaAtivo.id ? turnoAtualizado : t));
+    return turnoAtualizado;
+  };
+
+  const realizarSangria = (valor: number, descricao: string) => {
+    if (!turnoCaixaAtivo) {
+      alert('É necessário ter um caixa aberto para realizar sangria.');
+      return;
+    }
+    const novaMov: MovimentacaoCaixa = {
+      id: `mov-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      tipo: 'SANGRIA',
+      valor,
+      forma_pagamento: 'DINHEIRO',
+      descricao: descricao || 'Retirada / Sangria de Caixa',
+      operador_nome: usuarioAtual.nome,
+      data_hora: new Date().toISOString()
+    };
+
+    setTurnosCaixa(prev => prev.map(t => {
+      if (t.id === turnoCaixaAtivo.id) {
+        return {
+          ...t,
+          total_dinheiro_sistema: Math.max(0, t.total_dinheiro_sistema - valor),
+          total_sangrias: t.total_sangrias + valor,
+          movimentacoes: [novaMov, ...t.movimentacoes]
+        };
+      }
+      return t;
+    }));
+
+    // Registra despesa / transferência no financeiro
+    adicionarTransacao({
+      tipo: 'DESPESA',
+      categoria: 'Sangria de Caixa',
+      descricao: `Sangria Caixa (${usuarioAtual.nome}): ${descricao}`,
+      valor: valor,
+      status: 'PAGO',
+      data_vencimento: new Date().toISOString().split('T')[0],
+      data_pagamento: new Date().toISOString().split('T')[0],
+      forma_pagamento: 'DINHEIRO'
+    });
+  };
+
+  const realizarSuprimento = (valor: number, descricao: string) => {
+    if (!turnoCaixaAtivo) {
+      alert('É necessário ter um caixa aberto para realizar suprimento.');
+      return;
+    }
+    const novaMov: MovimentacaoCaixa = {
+      id: `mov-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      tipo: 'SUPRIMENTO',
+      valor,
+      forma_pagamento: 'DINHEIRO',
+      descricao: descricao || 'Aporte / Suprimento de Caixa',
+      operador_nome: usuarioAtual.nome,
+      data_hora: new Date().toISOString()
+    };
+
+    setTurnosCaixa(prev => prev.map(t => {
+      if (t.id === turnoCaixaAtivo.id) {
+        return {
+          ...t,
+          total_dinheiro_sistema: t.total_dinheiro_sistema + valor,
+          total_suprimentos: t.total_suprimentos + valor,
+          movimentacoes: [novaMov, ...t.movimentacoes]
+        };
+      }
+      return t;
+    }));
+
+    adicionarTransacao({
+      tipo: 'RECEITA',
+      categoria: 'Suprimento de Caixa',
+      descricao: `Suprimento Caixa (${usuarioAtual.nome}): ${descricao}`,
+      valor: valor,
+      status: 'PAGO',
+      data_vencimento: new Date().toISOString().split('T')[0],
+      data_pagamento: new Date().toISOString().split('T')[0],
+      forma_pagamento: 'DINHEIRO'
+    });
+  };
+
+  // Refações de O.S.
+  const adicionarRefacaoOS = (refacaoData: Omit<RefacaoOS, 'id' | 'loja_id' | 'data_solicitacao' | 'status'>): RefacaoOS => {
+    const novaRefacao: RefacaoOS = {
+      ...refacaoData,
+      id: `ref-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      data_solicitacao: new Date().toISOString(),
+      status: 'PENDENTE_ENVIO'
+    };
+    setRefacoesOS(prev => [novaRefacao, ...prev]);
+
+    // Opcionalmente atualiza status da O.S. para AGUARDANDO_LABORATORIO
+    if (refacaoData.os_id) {
+      atualizarStatusOS(refacaoData.os_id, 'AGUARDANDO_LABORATORIO');
+    }
+    return novaRefacao;
+  };
+
+  const atualizarStatusRefacao = (id: string, status: RefacaoOS['status']) => {
+    setRefacoesOS(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+
+  // Trocas & Devoluções (Vale-Crédito)
+  const registrarTrocaDevolucao = (trocaData: Omit<TrocaDevolucaoItem, 'id' | 'loja_id' | 'data_solicitacao' | 'status' | 'codigo_vale'>): TrocaDevolucaoItem => {
+    const codigoVale = `VALE-${Math.floor(100000 + Math.random() * 900000)}`;
+    const novaTroca: TrocaDevolucaoItem = {
+      ...trocaData,
+      id: `troca-${Date.now()}`,
+      loja_id: lojaAtiva.id,
+      data_solicitacao: new Date().toISOString(),
+      status: 'VALE_EMITIDO',
+      codigo_vale: codigoVale
+    };
+    setTrocasDevolucoes(prev => [novaTroca, ...prev]);
+
+    // Retorna produto ao estoque se solicitado
+    if (trocaData.retornar_ao_estoque && trocaData.produto_devolvido_id) {
+      setProdutos(prev => prev.map(p => {
+        if (p.id === trocaData.produto_devolvido_id) {
+          return { ...p, estoque_atual: p.estoque_atual + trocaData.quantidade };
+        }
+        return p;
+      }));
+    }
+
+    return novaTroca;
+  };
+
+  const utilizarValeCredito = (codigoVale: string): TrocaDevolucaoItem | null => {
+    const limpo = codigoVale.trim().toUpperCase();
+    const vale = trocasDevolucoes.find(t => t.loja_id === lojaAtiva.id && t.codigo_vale === limpo && t.status === 'VALE_EMITIDO');
+    if (!vale) return null;
+
+    setTrocasDevolucoes(prev => prev.map(t => t.id === vale.id ? { ...t, status: 'UTILIZADO' } : t));
+    return vale;
+  };
+
+  // Importação e Exportação em Lote
+  const importarClientesEmLote = (novos: Omit<Cliente, 'id' | 'loja_id' | 'created_at'>[]): number => {
+    const formatados: Cliente[] = novos.map(c => ({
+      ...c,
+      id: `cli-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      loja_id: lojaAtiva.id,
+      created_at: new Date().toISOString()
+    }));
+    setClientes(prev => [...formatados, ...prev]);
+    return formatados.length;
+  };
+
+  const importarProdutosEmLote = (novos: Omit<Produto, 'id' | 'loja_id'>[]): number => {
+    const formatados: Produto[] = novos.map(p => ({
+      ...p,
+      id: `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      loja_id: lojaAtiva.id
+    }));
+    setProdutos(prev => [...formatados, ...prev]);
+    return formatados.length;
+  };
+
+  const exportarBackupCompleto = (): string => {
+    const payload = {
+      exportado_em: new Date().toISOString(),
+      versao_sistema: OPTICSYS_SYSTEM_VERSION,
+      loja: lojaAtiva,
+      funcionarios: funcionarios.filter(f => f.loja_id === lojaAtiva.id),
+      clientes: clientes.filter(c => c.loja_id === lojaAtiva.id),
+      receitas: receitas.filter(r => r.loja_id === lojaAtiva.id),
+      ordens_servico: ordensServico.filter(o => o.loja_id === lojaAtiva.id),
+      produtos: produtos.filter(p => p.loja_id === lojaAtiva.id),
+      laboratorios: laboratorios.filter(l => l.loja_id === lojaAtiva.id),
+      vendas: vendas.filter(v => v.loja_id === lojaAtiva.id),
+      transacoes: transacoes.filter(t => t.loja_id === lojaAtiva.id),
+      turnos_caixa: turnosCaixa.filter(tc => tc.loja_id === lojaAtiva.id),
+      refacoes_os: refacoesOS.filter(r => r.loja_id === lojaAtiva.id),
+      trocas_devolucoes: trocasDevolucoes.filter(td => td.loja_id === lojaAtiva.id)
+    };
+    return JSON.stringify(payload, null, 2);
+  };
+
+  // CRM SaaS Wipelis
   const adicionarLeadSaaS = (leadData: Omit<LeadSaaS, 'id' | 'data_cadastro' | 'trial_dias_restantes'>) => {
     const novoLead: LeadSaaS = {
       ...leadData,
       id: `lead-${Date.now()}`,
       data_cadastro: new Date().toISOString(),
-      trial_dias_restantes: 7
+      trial_dias_restantes: 7,
+      historico_interacoes: []
     };
     setLeadsSaaS(prev => [novoLead, ...prev]);
   };
@@ -351,6 +681,28 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
   };
 
+  const adicionarInteracaoLead = (leadId: string, interacao: Omit<InteracaoCRMLead, 'id' | 'data'>) => {
+    const novaInteracao: InteracaoCRMLead = {
+      ...interacao,
+      id: `int-${Date.now()}`,
+      data: new Date().toISOString()
+    };
+    setLeadsSaaS(prev => prev.map(l => {
+      if (l.id === leadId) {
+        return {
+          ...l,
+          historico_interacoes: [novaInteracao, ...(l.historico_interacoes || [])],
+          ultimo_contato: new Date().toISOString()
+        };
+      }
+      return l;
+    }));
+  };
+
+  const atualizarLeadCRM = (leadId: string, dados: Partial<LeadSaaS>) => {
+    setLeadsSaaS(prev => prev.map(l => l.id === leadId ? { ...l, ...dados } : l));
+  };
+
   const atualizarTenantStatus = (tenantId: string, status: 'ATIVO' | 'TRIAL' | 'ATRASADO' | 'BLOQUEADO' | 'CANCELADO') => {
     setTenantsSaaS(prev => prev.map(t => {
       if (t.id === tenantId) {
@@ -358,6 +710,10 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return t;
     }));
+  };
+
+  const atualizarTenantSaaS = (tenantId: string, dados: Partial<TenantSaaS>) => {
+    setTenantsSaaS(prev => prev.map(t => t.id === tenantId ? { ...t, ...dados } : t));
   };
 
   const prorrogarTrialTenant = (tenantId: string, diasExtras: number = 7) => {
@@ -483,7 +839,8 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       trial_dias_restantes: 7,
       status: 'TRIAL_ATIVO',
       origem: 'LANDING_PAGE',
-      observacoes: 'Novo cadastro de teste de 7 dias via Onboarding OpticSys.'
+      observacoes: 'Novo cadastro de teste de 7 dias via Onboarding OpticSys.',
+      historico_interacoes: []
     };
 
     const novoTenant: TenantSaaS = {
@@ -700,6 +1057,41 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     setTransacoes(prev => [novaTra, ...prev]);
 
+    // Se o caixa estiver aberto, atualiza valores no turno ativo
+    if (turnoCaixaAtivo) {
+      const movVenda: MovimentacaoCaixa = {
+        id: `mov-${Date.now()}`,
+        loja_id: lojaAtiva.id,
+        tipo: 'VENDA',
+        valor: vendaData.valor_final,
+        forma_pagamento: vendaData.forma_pagamento as any,
+        descricao: `Venda PDV #${proximaVenda}`,
+        operador_nome: usuarioAtual.nome,
+        data_hora: new Date().toISOString()
+      };
+
+      setTurnosCaixa(prev => prev.map(t => {
+        if (t.id === turnoCaixaAtivo.id) {
+          const din = vendaData.forma_pagamento === 'DINHEIRO' ? t.total_dinheiro_sistema + vendaData.valor_final : t.total_dinheiro_sistema;
+          const pix = vendaData.forma_pagamento === 'PIX' ? t.total_pix_sistema + vendaData.valor_final : t.total_pix_sistema;
+          const deb = vendaData.forma_pagamento === 'CARTAO_DEBITO' ? t.total_cartao_debito_sistema + vendaData.valor_final : t.total_cartao_debito_sistema;
+          const cred = vendaData.forma_pagamento === 'CARTAO_CREDITO' ? t.total_cartao_credito_sistema + vendaData.valor_final : t.total_cartao_credito_sistema;
+          const crediario = vendaData.forma_pagamento === 'CREDIARIO_PROPRIO' ? t.total_crediario_sistema + vendaData.valor_final : t.total_crediario_sistema;
+          
+          return {
+            ...t,
+            total_dinheiro_sistema: din,
+            total_pix_sistema: pix,
+            total_cartao_debito_sistema: deb,
+            total_cartao_credito_sistema: cred,
+            total_crediario_sistema: crediario,
+            movimentacoes: [movVenda, ...t.movimentacoes]
+          };
+        }
+        return t;
+      }));
+    }
+
     return novaVenda;
   };
 
@@ -764,11 +1156,29 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
       laboratorios: laboratorios.filter(l => l.loja_id === lojaAtiva.id),
       vendas: vendas.filter(v => v.loja_id === lojaAtiva.id),
       transacoes: transacoes.filter(t => t.loja_id === lojaAtiva.id),
+      turnosCaixa: turnosCaixa.filter(t => t.loja_id === lojaAtiva.id),
+      turnoCaixaAtivo,
+      abrirTurnoCaixa,
+      fecharTurnoCaixa,
+      realizarSangria,
+      realizarSuprimento,
+      refacoesOS: refacoesOS.filter(r => r.loja_id === lojaAtiva.id),
+      adicionarRefacaoOS,
+      atualizarStatusRefacao,
+      trocasDevolucoes: trocasDevolucoes.filter(td => td.loja_id === lojaAtiva.id),
+      registrarTrocaDevolucao,
+      utilizarValeCredito,
+      importarClientesEmLote,
+      importarProdutosEmLote,
+      exportarBackupCompleto,
       leadsSaaS,
       tenantsSaaS,
       adicionarLeadSaaS,
       atualizarStatusLead,
+      adicionarInteracaoLead,
+      atualizarLeadCRM,
       atualizarTenantStatus,
+      atualizarTenantSaaS,
       prorrogarTrialTenant,
       adicionarCotaNotasTenant,
       resetarCotaNotasTenant,
@@ -805,3 +1215,4 @@ export const useAuthAndTenant = () => {
   }
   return context;
 };
+

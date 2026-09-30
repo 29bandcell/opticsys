@@ -15,7 +15,16 @@ import {
   Printer,
   FileText,
   Boxes,
-  ArrowRight
+  ArrowRight,
+  Wallet,
+  Lock,
+  Unlock,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Gift,
+  AlertTriangle,
+  History,
+  Check
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { Produto, VendaPDV } from '../types';
@@ -27,7 +36,14 @@ export const PDV: React.FC = () => {
     produtos, 
     clientes, 
     usuarioAtual, 
-    realizarVendaPDV 
+    realizarVendaPDV,
+    turnoCaixaAtivo,
+    abrirTurnoCaixa,
+    fecharTurnoCaixa,
+    realizarSangria,
+    realizarSuprimento,
+    utilizarValeCredito,
+    trocasDevolucoes
   } = useAuthAndTenant();
 
   const [abaMobile, setAbaMobile] = useState<'CATALOGO' | 'CARRINHO'>('CATALOGO');
@@ -43,6 +59,37 @@ export const PDV: React.FC = () => {
   const [formaPagamento, setFormaPagamento] = useState<'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'CREDIARIO_PROPRIO'>('PIX');
   const [parcelas, setParcelas] = useState<number>(1);
   const [vendaConcluida, setVendaConcluida] = useState<VendaPDV | null>(null);
+
+  // Vale Crédito aplicado
+  const [codigoValeInput, setCodigoValeInput] = useState('');
+  const [descontoValeCredito, setDescontoValeCredito] = useState(0);
+  const [valeAplicadoCodigo, setValeAplicadoCodigo] = useState<string | null>(null);
+
+  // Modais de Gestão de Caixa
+  const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false);
+  const [valorAberturaInput, setValorAberturaInput] = useState('100.00');
+  
+  const [modalSangria, setModalSangria] = useState(false);
+  const [valorSangriaInput, setValorSangriaInput] = useState('');
+  const [motivoSangriaInput, setMotivoSangriaInput] = useState('');
+
+  const [modalSuprimento, setModalSuprimento] = useState(false);
+  const [valorSuprimentoInput, setValorSuprimentoInput] = useState('');
+  const [motivoSuprimentoInput, setMotivoSuprimentoInput] = useState('');
+
+  const [modalFecharCaixa, setModalFecharCaixa] = useState(false);
+  const [contagemDinheiro, setContagemDinheiro] = useState('');
+  const [contagemPix, setContagemPix] = useState('');
+  const [contagemDebito, setContagemDebito] = useState('');
+  const [contagemCredito, setContagemCredito] = useState('');
+  const [obsFechamento, setObsFechamento] = useState('');
+  const [fechamentoResumo, setFechamentoResumo] = useState<{
+    diferenca: number;
+    totalInformado: number;
+    totalSistema: number;
+  } | null>(null);
+
+  const [modalValeCredito, setModalValeCredito] = useState(false);
 
   // Filtro de produtos
   const produtosFiltrados = produtos.filter(p => {
@@ -82,8 +129,94 @@ export const PDV: React.FC = () => {
   };
 
   const subtotal = carrinho.reduce((acc, item) => acc + (item.produto.preco_venda * item.quantidade), 0);
-  const totalDescontos = carrinho.reduce((acc, item) => acc + (item.desconto * item.quantidade), 0);
+  const totalDescontosItens = carrinho.reduce((acc, item) => acc + (item.desconto * item.quantidade), 0);
+  const totalDescontos = totalDescontosItens + descontoValeCredito;
   const totalFinal = Math.max(0, subtotal - totalDescontos);
+
+  const handleValidarValeCredito = () => {
+    if (!codigoValeInput.trim()) return;
+    const vale = utilizarValeCredito(codigoValeInput.trim());
+    if (vale) {
+      setDescontoValeCredito(vale.valor_credito);
+      setValeAplicadoCodigo(vale.codigo_vale);
+      setModalValeCredito(false);
+      setCodigoValeInput('');
+      alert(`Vale-Crédito ${vale.codigo_vale} de R$ ${vale.valor_credito.toFixed(2)} aplicado com sucesso!`);
+    } else {
+      alert('Vale-Crédito não encontrado ou já utilizado.');
+    }
+  };
+
+  const handleAbrirCaixa = () => {
+    const val = parseFloat(valorAberturaInput) || 0;
+    abrirTurnoCaixa(val);
+    setModalAbrirCaixa(false);
+  };
+
+  const handleConfirmarSangria = () => {
+    const val = parseFloat(valorSangriaInput) || 0;
+    if (val <= 0) {
+      alert('Informe um valor válido para sangria.');
+      return;
+    }
+    realizarSangria(val, motivoSangriaInput || 'Sangria de Caixa');
+    setModalSangria(false);
+    setValorSangriaInput('');
+    setMotivoSangriaInput('');
+  };
+
+  const handleConfirmarSuprimento = () => {
+    const val = parseFloat(valorSuprimentoInput) || 0;
+    if (val <= 0) {
+      alert('Informe um valor válido para suprimento.');
+      return;
+    }
+    realizarSuprimento(val, motivoSuprimentoInput || 'Suprimento de Caixa');
+    setModalSuprimento(false);
+    setValorSuprimentoInput('');
+    setMotivoSuprimentoInput('');
+  };
+
+  const handleCalcularFechamentoCego = () => {
+    if (!turnoCaixaAtivo) return;
+    const din = parseFloat(contagemDinheiro) || 0;
+    const pix = parseFloat(contagemPix) || 0;
+    const deb = parseFloat(contagemDebito) || 0;
+    const cred = parseFloat(contagemCredito) || 0;
+
+    const totalInformado = din + pix + deb + cred;
+    const totalSistema = turnoCaixaAtivo.total_dinheiro_sistema + 
+      turnoCaixaAtivo.total_pix_sistema + 
+      turnoCaixaAtivo.total_cartao_debito_sistema + 
+      turnoCaixaAtivo.total_cartao_credito_sistema;
+    const diferenca = totalInformado - totalSistema;
+
+    setFechamentoResumo({ diferenca, totalInformado, totalSistema });
+  };
+
+  const handleConcluirFechamento = () => {
+    const din = parseFloat(contagemDinheiro) || 0;
+    const pix = parseFloat(contagemPix) || 0;
+    const deb = parseFloat(contagemDebito) || 0;
+    const cred = parseFloat(contagemCredito) || 0;
+
+    fecharTurnoCaixa({
+      dinheiroInformado: din,
+      pixInformado: pix,
+      cartaoDebitoInformado: deb,
+      cartaoCreditoInformado: cred,
+      observacoes: obsFechamento
+    });
+
+    setModalFecharCaixa(false);
+    setFechamentoResumo(null);
+    setContagemDinheiro('');
+    setContagemPix('');
+    setContagemDebito('');
+    setContagemCredito('');
+    setObsFechamento('');
+    alert('Turno de caixa fechado com sucesso!');
+  };
 
   const handleFinalizarVenda = () => {
     if (carrinho.length === 0) {
@@ -116,32 +249,108 @@ export const PDV: React.FC = () => {
 
     setVendaConcluida(novaVenda);
     setCarrinho([]);
+    setDescontoValeCredito(0);
+    setValeAplicadoCodigo(null);
     setAbaMobile('CATALOGO');
   };
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       
-      {/* Header Responsivo */}
-      <div className="bg-white dark:bg-[#101014] border border-slate-200 dark:border-zinc-800 p-4 sm:p-5 rounded-xl shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-sky-50 dark:bg-sky-950 text-[#0284C7] flex items-center justify-center font-bold shrink-0">
-            <ShoppingCart className="w-5 h-5" />
+      {/* Header Responsivo & Caixa Status Bar */}
+      <div className="bg-white dark:bg-[#101014] border border-slate-200 dark:border-zinc-800 p-4 sm:p-5 rounded-xl shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 text-[#0284C7] flex items-center justify-center font-bold shrink-0">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100">
+                  Ponto de Venda & Caixa Operacional
+                </h1>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                  turnoCaixaAtivo 
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' 
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
+                }`}>
+                  {turnoCaixaAtivo ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                  {turnoCaixaAtivo ? 'CAIXA ABERTO' : 'CAIXA FECHADO'}
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400">
+                Vendas, emissão de cupons térmicos, controle de sangrias e suprimentos.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100">
-              Ponto de Venda (PDV Balcão)
-            </h1>
-            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400">
-              Venda rápida de óculos solar, armações, lentes de contato e acessórios.
-            </p>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {!turnoCaixaAtivo ? (
+              <button
+                onClick={() => setModalAbrirCaixa(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Unlock className="w-3.5 h-3.5" /> Abrir Caixa
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setModalSuprimento(true)}
+                  className="bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 hover:bg-sky-100 font-semibold text-xs px-3 py-1.5 rounded-lg border border-sky-200 dark:border-sky-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowUpCircle className="w-3.5 h-3.5" /> Suprimento
+                </button>
+                <button
+                  onClick={() => setModalSangria(true)}
+                  className="bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 font-semibold text-xs px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowDownCircle className="w-3.5 h-3.5" /> Sangria
+                </button>
+                <button
+                  onClick={() => setModalFecharCaixa(true)}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5" /> Fechar Caixa
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => setModalValeCredito(true)}
+              className="bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold text-xs px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800 flex items-center gap-1 cursor-pointer ml-auto sm:ml-0"
+            >
+              <Gift className="w-3.5 h-3.5" /> Vale-Crédito
+            </button>
           </div>
         </div>
 
-        <div className="text-left sm:text-right text-xs font-mono bg-slate-50 dark:bg-zinc-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 w-full sm:w-auto flex justify-between sm:block">
-          <span className="text-slate-400">Operador: </span>
-          <strong className="text-slate-800 dark:text-zinc-200">{usuarioAtual.nome}</strong>
-        </div>
+        {/* Resumo do Caixa Ativo */}
+        {turnoCaixaAtivo && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] font-mono">
+            <div className="bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800">
+              <span className="text-slate-400 block text-[10px]">Fundo Abertura:</span>
+              <strong className="text-slate-800 dark:text-zinc-200">R$ {turnoCaixaAtivo.valor_abertura.toFixed(2)}</strong>
+            </div>
+            <div className="bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800">
+              <span className="text-slate-400 block text-[10px]">Dinheiro em Gaveta:</span>
+              <strong className="text-emerald-600 dark:text-emerald-400">R$ {turnoCaixaAtivo.total_dinheiro_sistema.toFixed(2)}</strong>
+            </div>
+            <div className="bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800">
+              <span className="text-slate-400 block text-[10px]">Entradas PIX:</span>
+              <strong className="text-sky-600 dark:text-sky-400">R$ {turnoCaixaAtivo.total_pix_sistema.toFixed(2)}</strong>
+            </div>
+            <div className="bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800">
+              <span className="text-slate-400 block text-[10px]">Cartões (Déb+Créd):</span>
+              <strong className="text-indigo-600 dark:text-indigo-400">
+                R$ {(turnoCaixaAtivo.total_cartao_debito_sistema + turnoCaixaAtivo.total_cartao_credito_sistema).toFixed(2)}
+              </strong>
+            </div>
+            <div className="bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 col-span-2 sm:col-span-1">
+              <span className="text-slate-400 block text-[10px]">Total Sangrias:</span>
+              <strong className="text-amber-600 dark:text-amber-400">R$ {turnoCaixaAtivo.total_sangrias.toFixed(2)}</strong>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Switcher de Abas no Mobile / Tablet (< lg) */}
@@ -196,7 +405,7 @@ export const PDV: React.FC = () => {
               />
             </div>
 
-            {/* Categorias Rápidas com Scroll Horizontal Touch */}
+            {/* Categorias Rápidas */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
               {[
                 { id: 'TODOS', label: 'Todos' },
@@ -309,7 +518,7 @@ export const PDV: React.FC = () => {
             </div>
 
             {/* Itens do Carrinho */}
-            <div className="space-y-2 max-h-52 sm:max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-48 sm:max-h-56 overflow-y-auto pr-1">
               {carrinho.map(item => (
                 <div key={item.produto.id} className="p-2.5 bg-slate-50 dark:bg-zinc-900/80 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs space-y-1.5">
                   <div className="flex justify-between items-start gap-2">
@@ -348,6 +557,18 @@ export const PDV: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Vale-Crédito Ativo */}
+            {valeAplicadoCodigo && (
+              <div className="bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 p-2 rounded-lg flex justify-between items-center text-xs">
+                <span className="text-purple-700 dark:text-purple-300 font-bold flex items-center gap-1">
+                  <Gift className="w-3.5 h-3.5" /> Vale {valeAplicadoCodigo}:
+                </span>
+                <span className="text-purple-700 dark:text-purple-300 font-mono font-black">
+                  - R$ {descontoValeCredito.toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Formas de Pagamento e Checkout */}
@@ -409,6 +630,12 @@ export const PDV: React.FC = () => {
                 <span>Subtotal:</span>
                 <span>R$ {subtotal.toFixed(2)}</span>
               </div>
+              {totalDescontos > 0 && (
+                <div className="flex justify-between text-xs text-emerald-600">
+                  <span>Descontos / Vales:</span>
+                  <span>- R$ {totalDescontos.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base font-extrabold text-slate-900 dark:text-white border-t border-slate-300 dark:border-zinc-700 pt-1">
                 <span>TOTAL:</span>
                 <span className="text-[#0284C7] dark:text-sky-400">R$ {totalFinal.toFixed(2)}</span>
@@ -440,6 +667,359 @@ export const PDV: React.FC = () => {
 
       </div>
 
+      {/* Modal Abertura de Caixa */}
+      {modalAbrirCaixa && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-sm w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center">
+                <Unlock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Abertura de Caixa</h3>
+                <p className="text-xs text-slate-500">Informe o valor inicial de fundo de troco</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                Fundo de Troco (R$):
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={valorAberturaInput}
+                onChange={e => setValorAberturaInput(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-sm font-bold font-mono focus:border-emerald-500 outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setModalAbrirCaixa(false)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAbrirCaixa}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
+              >
+                Confirmar Abertura
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sangria */}
+      {modalSangria && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-sm w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center">
+                <ArrowDownCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Sangria de Caixa</h3>
+                <p className="text-xs text-slate-500">Retirada justificada de dinheiro em gaveta</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Valor da Retirada (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={valorSangriaInput}
+                  onChange={e => setValorSangriaInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-sm font-bold font-mono focus:border-amber-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Motivo / Justificativa:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Pagamento de motoboy, recolhimento cofre..."
+                  value={motivoSangriaInput}
+                  onChange={e => setMotivoSangriaInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2 text-xs focus:border-amber-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setModalSangria(false)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarSangria}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md hover:bg-amber-700"
+              >
+                Registrar Sangria
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Suprimento */}
+      {modalSuprimento && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-sm w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 flex items-center justify-center">
+                <ArrowUpCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Suprimento de Caixa</h3>
+                <p className="text-xs text-slate-500">Aporte extra de troco em dinheiro</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Valor do Aporte (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={valorSuprimentoInput}
+                  onChange={e => setValorSuprimentoInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-sm font-bold font-mono focus:border-sky-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Motivo / Observação:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Moedas para troco..."
+                  value={motivoSuprimentoInput}
+                  onChange={e => setMotivoSuprimentoInput(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2 text-xs focus:border-sky-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setModalSuprimento(false)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarSuprimento}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-md hover:bg-sky-700"
+              >
+                Registrar Suprimento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Fechamento Cego de Caixa */}
+      {modalFecharCaixa && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-md w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 flex items-center justify-center">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Fechamento Cego de Caixa</h3>
+                <p className="text-xs text-slate-500">Conte os valores reais para apuração de diferenças</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Dinheiro Físico (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={contagemDinheiro}
+                  onChange={e => setContagemDinheiro(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Comprovantes PIX (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={contagemPix}
+                  onChange={e => setContagemPix(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Cartão Débito (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={contagemDebito}
+                  onChange={e => setContagemDebito(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                  Cartão Crédito (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={contagemCredito}
+                  onChange={e => setContagemCredito(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                Observações de Fechamento:
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Diferença de centavos em troco..."
+                value={obsFechamento}
+                onChange={e => setObsFechamento(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-xs"
+              />
+            </div>
+
+            {fechamentoResumo && (
+              <div className={`p-3 rounded-xl border font-mono text-xs space-y-1 ${
+                fechamentoResumo.diferenca === 0 
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300' 
+                  : fechamentoResumo.diferenca > 0
+                  ? 'bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950/50 dark:border-sky-800 dark:text-sky-300'
+                  : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300'
+              }`}>
+                <div className="flex justify-between">
+                  <span>Total Contado:</span>
+                  <strong>R$ {fechamentoResumo.totalInformado.toFixed(2)}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total no Sistema:</span>
+                  <strong>R$ {fechamentoResumo.totalSistema.toFixed(2)}</strong>
+                </div>
+                <div className="flex justify-between font-bold border-t pt-1">
+                  <span>Resultado:</span>
+                  <span>
+                    {fechamentoResumo.diferenca === 0 
+                      ? 'Caixa 100% Batido (R$ 0,00)' 
+                      : fechamentoResumo.diferenca > 0 
+                      ? `SOBRA DE CAIXA: +R$ ${fechamentoResumo.diferenca.toFixed(2)}` 
+                      : `FALTA DE CAIXA: -R$ ${Math.abs(fechamentoResumo.diferenca).toFixed(2)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setModalFecharCaixa(false)}
+                className="py-2 px-3 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Voltar
+              </button>
+              {!fechamentoResumo ? (
+                <button
+                  onClick={handleCalcularFechamentoCego}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md hover:bg-indigo-700"
+                >
+                  Conferir Valores
+                </button>
+              ) : (
+                <button
+                  onClick={handleConcluirFechamento}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-md hover:bg-rose-700"
+                >
+                  Confirmar e Encerrar Turno
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Resgatar Vale Crédito */}
+      {modalValeCredito && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-sm w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 flex items-center justify-center">
+                <Gift className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Resgatar Vale-Crédito</h3>
+                <p className="text-xs text-slate-500">Aplique o crédito de trocas ou devoluções</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                Código do Vale (ex: VALE-123456):
+              </label>
+              <input
+                type="text"
+                placeholder="VALE-XXXXXX"
+                value={codigoValeInput}
+                onChange={e => setCodigoValeInput(e.target.value.toUpperCase())}
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl p-2.5 text-sm font-bold font-mono focus:border-purple-500 outline-none uppercase"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setModalValeCredito(false)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleValidarValeCredito}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-md hover:bg-purple-700"
+              >
+                Aplicar Vale
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Impressão e Conclusão de Venda (Cupom Térmico / Carnê / Recibo) */}
       {vendaConcluida && (
         <PrintVendaModal
@@ -451,3 +1031,4 @@ export const PDV: React.FC = () => {
     </div>
   );
 };
+

@@ -130,9 +130,23 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
   // 7. Fotos da O.S. (Galeria de até 5 fotos)
   const [fotosOS, setFotosOS] = useState<string[]>([]);
 
-  // 8. Observações & Desconto
+  // 8. Observações & Desconto & Sinal/Saldo
   const [observacao, setObservacao] = useState('');
   const [desconto, setDesconto] = useState(0);
+  const [valorSinal, setValorSinal] = useState(0);
+  const [formaPagamentoSinal, setFormaPagamentoSinal] = useState('PIX');
+
+  // Modais de Controle de Qualidade e Comprovante de Retirada
+  const [osQualidadeModal, setOsQualidadeModal] = useState<OrdemServicoOptica | null>(null);
+  const [checkDioptria, setCheckDioptria] = useState(true);
+  const [checkDNP, setCheckDNP] = useState(true);
+  const [checkEixo, setCheckEixo] = useState(true);
+  const [checkLimpeza, setCheckLimpeza] = useState(true);
+  const [conferidoPor, setConferidoPor] = useState(usuarioAtual?.nome || 'Óptico Responsável');
+
+  const [osRetiradaModal, setOsRetiradaModal] = useState<OrdemServicoOptica | null>(null);
+  const [nomeRecebedor, setNomeRecebedor] = useState('');
+  const [docRecebedor, setDocRecebedor] = useState('');
 
   // Atualiza DP total automaticamente ao mudar DNP
   useEffect(() => {
@@ -329,7 +343,7 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
       armacao_descricao: itensOS[0]?.nome || 'Armação Receituário',
       fotos_os: fotosOS,
 
-      // Valores
+      // Valores & Sinal / Saldo
       valor_armacao: itensOS[0]?.valor_total || 0,
       valor_lentes: itensOS[1]?.valor_total || 0,
       valor_tratamentos: 0,
@@ -337,6 +351,9 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
       custo_laboratorio_estimado: subtotalItens * 0.35,
       valor_desconto: desconto,
       valor_total: totalFinalOS,
+      valor_sinal: valorSinal,
+      valor_saldo: Math.max(0, totalFinalOS - valorSinal),
+      forma_pagamento_sinal: formaPagamentoSinal,
       data_abertura: `${dataOS}T12:00:00Z`,
       data_prometida: `${dataEntrega}T18:00:00Z`,
       observacoes_internas: observacao
@@ -462,18 +479,47 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
                         <p className="text-[11px] text-slate-500 truncate mt-0.5">
                           {os.armacao_descricao}
                         </p>
+                        {os.valor_sinal !== undefined && os.valor_sinal > 0 && (
+                          <div className="flex justify-between text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                            <span>Sinal: R$ {os.valor_sinal.toFixed(2)}</span>
+                            <span>Saldo: R$ {(os.valor_saldo || (os.valor_total - os.valor_sinal)).toFixed(2)}</span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="border-t border-slate-100 dark:border-zinc-800/80 pt-2 flex justify-between items-center text-[10px]">
+                      <div className="border-t border-slate-100 dark:border-zinc-800/80 pt-2 flex flex-wrap justify-between items-center gap-1.5 text-[10px]">
                         <span className="font-mono font-bold text-slate-700 dark:text-zinc-300">
                           R$ {os.valor_total.toFixed(2)}
                         </span>
-                        <button
-                          onClick={() => setOsParaImprimir(os)}
-                          className="text-[#0284C7] hover:underline flex items-center gap-0.5 font-semibold"
-                        >
-                          <Printer className="w-3 h-3" /> Imprimir
-                        </button>
+                        
+                        <div className="flex items-center gap-1">
+                          {os.status === 'EM_MONTAGEM' || os.status === 'CONTROLE_QUALIDADE' ? (
+                            <button
+                              onClick={() => setOsQualidadeModal(os)}
+                              className="bg-cyan-50 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 px-1.5 py-0.5 rounded font-bold"
+                              title="Conferência no Lensômetro"
+                            >
+                              Lensômetro
+                            </button>
+                          ) : null}
+
+                          {os.status === 'PRONTO_RETIRADA' ? (
+                            <button
+                              onClick={() => setOsRetiradaModal(os)}
+                              className="bg-emerald-600 text-white hover:bg-emerald-700 px-2 py-0.5 rounded font-bold"
+                              title="Registrar Entrega / Retirada"
+                            >
+                              Entregar
+                            </button>
+                          ) : null}
+
+                          <button
+                            onClick={() => setOsParaImprimir(os)}
+                            className="text-[#0284C7] hover:underline flex items-center gap-0.5 font-semibold"
+                          >
+                            <Printer className="w-3 h-3" /> Imprimir
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -499,7 +545,7 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
                 <th className="py-2.5 px-3">Laboratório</th>
                 <th className="py-2.5 px-3">Data Entrega</th>
                 <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-right">Valor</th>
+                <th className="py-2.5 px-3 text-right">Valor / Sinal</th>
                 <th className="py-2.5 px-3 text-center">Ações</th>
               </tr>
             </thead>
@@ -514,15 +560,40 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
                   <td className="py-3 px-3">
                     <Badge variant={os.status === 'PRONTO_RETIRADA' ? 'success' : 'info'}>{os.status}</Badge>
                   </td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">R$ {os.valor_total.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-right font-mono text-xs">
+                    <strong className="text-slate-900 dark:text-white block">R$ {os.valor_total.toFixed(2)}</strong>
+                    {os.valor_sinal ? (
+                      <span className="text-[10px] text-emerald-600 block">Sinal: R$ {os.valor_sinal.toFixed(2)}</span>
+                    ) : null}
+                  </td>
                   <td className="py-3 px-3 text-center">
-                    <button
-                      onClick={() => setOsParaImprimir(os)}
-                      className="p-1 text-slate-500 hover:text-[#0284C7]"
-                      title="Imprimir Envelope de O.S."
-                    >
-                      <Printer className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1.5">
+                      {(os.status === 'EM_MONTAGEM' || os.status === 'CONTROLE_QUALIDADE') && (
+                        <button
+                          onClick={() => setOsQualidadeModal(os)}
+                          className="px-2 py-1 bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300 rounded font-bold text-[10px]"
+                          title="Lensômetro"
+                        >
+                          Conferir
+                        </button>
+                      )}
+                      {os.status === 'PRONTO_RETIRADA' && (
+                        <button
+                          onClick={() => setOsRetiradaModal(os)}
+                          className="px-2 py-1 bg-emerald-600 text-white rounded font-bold text-[10px]"
+                          title="Registrar Retirada"
+                        >
+                          Entregar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setOsParaImprimir(os)}
+                        className="p-1 text-slate-500 hover:text-[#0284C7]"
+                        title="Imprimir Envelope de O.S."
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1234,13 +1305,14 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
                   />
                 </div>
 
-                {/* Resumo Financeiro */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-100 dark:bg-zinc-900 p-3 rounded-lg font-mono">
-                  <div className="flex flex-wrap gap-4 text-xs">
+                {/* Resumo Financeiro, Sinal e Saldo */}
+                <div className="bg-slate-100 dark:bg-zinc-900 p-3 rounded-lg font-mono space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div>
                       <span className="text-slate-500 block text-[10px]">Subtotal Itens:</span>
                       <strong className="text-slate-800 dark:text-zinc-200">R$ {subtotalItens.toFixed(2)}</strong>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <span className="text-slate-500 text-[10px]">Desconto (R$):</span>
                       <input
@@ -1251,13 +1323,48 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
                         className="w-20 text-right bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded px-2 py-0.5 font-mono text-xs font-bold text-rose-600"
                       />
                     </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block uppercase">Valor Total</span>
+                      <strong className="text-sm font-black text-[#0284C7] dark:text-sky-400">
+                        R$ {totalFinalOS.toFixed(2)}
+                      </strong>
+                    </div>
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block uppercase">Valor Total da O.S.</span>
-                    <strong className="text-base font-black text-[#0284C7] dark:text-sky-400">
-                      R$ {totalFinalOS.toFixed(2)}
-                    </strong>
+                  <div className="border-t border-slate-200 dark:border-zinc-800 pt-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 text-[10px]">Sinal Pago (R$):</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={valorSinal || ''}
+                        onChange={e => setValorSinal(parseFloat(e.target.value) || 0)}
+                        className="w-24 text-right bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded px-2 py-0.5 font-mono text-xs font-bold text-emerald-600"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 text-[10px]">Forma Sinal:</span>
+                      <select
+                        value={formaPagamentoSinal}
+                        onChange={e => setFormaPagamentoSinal(e.target.value)}
+                        className="bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded px-2 py-0.5 font-mono text-xs font-bold"
+                      >
+                        <option value="PIX">PIX</option>
+                        <option value="DINHEIRO">Dinheiro</option>
+                        <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                        <option value="CARTAO_DEBITO">Cartão Débito</option>
+                      </select>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block uppercase">Saldo na Retirada:</span>
+                      <strong className="text-sm font-black text-amber-600 dark:text-amber-400">
+                        R$ {Math.max(0, totalFinalOS - valorSinal).toFixed(2)}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1293,6 +1400,198 @@ export const OrdensServico: React.FC<OrdensServicoProps> = ({
           receita={receitas.find(r => r.id === osParaImprimir.receita_id)}
           onClose={() => setOsParaImprimir(null)}
         />
+      )}
+
+      {/* Modal de Checklist de Controle de Qualidade (Lensômetro) */}
+      {osQualidadeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-md w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950 text-cyan-600 flex items-center justify-center font-bold">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">
+                  Conferência Técnica & Lensômetro
+                </h3>
+                <p className="text-xs text-slate-500">O.S. #{osQualidadeModal.numero_os} - {osQualidadeModal.cliente_nome}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <label className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkDioptria}
+                  onChange={e => setCheckDioptria(e.target.checked)}
+                  className="rounded text-[#0284C7] focus:ring-0"
+                />
+                <div>
+                  <strong className="block text-slate-800 dark:text-zinc-200">Dioptria Conferida no Lensômetro</strong>
+                  <span className="text-[10px] text-slate-400">Esférico, cilíndrico e eixo OD/OE conferidos com a prescrição</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkDNP}
+                  onChange={e => setCheckDNP(e.target.checked)}
+                  className="rounded text-[#0284C7] focus:ring-0"
+                />
+                <div>
+                  <strong className="block text-slate-800 dark:text-zinc-200">Centragem DNP & Altura de Montagem</strong>
+                  <span className="text-[10px] text-slate-400">Centro óptico alinhado com a pupila do paciente</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkEixo}
+                  onChange={e => setCheckEixo(e.target.checked)}
+                  className="rounded text-[#0284C7] focus:ring-0"
+                />
+                <div>
+                  <strong className="block text-slate-800 dark:text-zinc-200">Alinhamento das Hastes & Bizel</strong>
+                  <span className="text-[10px] text-slate-400">Armação nivelada e lentes perfeitamente encaixadas no aro</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkLimpeza}
+                  onChange={e => setCheckLimpeza(e.target.checked)}
+                  className="rounded text-[#0284C7] focus:ring-0"
+                />
+                <div>
+                  <strong className="block text-slate-800 dark:text-zinc-200">Limpeza & Ajuste de Plaquetas</strong>
+                  <span className="text-[10px] text-slate-400">Óculos higienizado, sem resíduos e pronto para entrega</span>
+                </div>
+              </label>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-400 mb-1">
+                  Conferido por (Montador / Técnico Responsável):
+                </label>
+                <input
+                  type="text"
+                  value={conferidoPor}
+                  onChange={e => setConferidoPor(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setOsQualidadeModal(null)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  atualizarStatusOS(osQualidadeModal.id, 'PRONTO_RETIRADA', conferidoPor);
+                  setOsQualidadeModal(null);
+                  alert(`O.S. #${osQualidadeModal.numero_os} aprovada no controle de qualidade e marcada como PRONTO P/ RETIRADA!`);
+                }}
+                disabled={!checkDioptria || !checkDNP || !checkEixo || !checkLimpeza}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Aprovar & Pronto p/ Retirada
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Comprovante de Retirada & Assinatura */}
+      {osRetiradaModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#151518] rounded-2xl max-w-md w-full p-5 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-zinc-100">
+                  Comprovante de Retirada de Óculos
+                </h3>
+                <p className="text-xs text-slate-500">O.S. #{osRetiradaModal.numero_os} - {osRetiradaModal.cliente_nome}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 dark:bg-zinc-900/60 p-3 rounded-lg border border-slate-200 dark:border-zinc-800 space-y-1 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Valor Total:</span>
+                  <strong>R$ {osRetiradaModal.valor_total.toFixed(2)}</strong>
+                </div>
+                {osRetiradaModal.valor_sinal && osRetiradaModal.valor_sinal > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Sinal Pago:</span>
+                    <span>- R$ {osRetiradaModal.valor_sinal.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-1 text-amber-600">
+                  <span>Saldo a Pagar na Retirada:</span>
+                  <span>R$ {(osRetiradaModal.valor_saldo || (osRetiradaModal.valor_total - (osRetiradaModal.valor_sinal || 0))).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-400 mb-1">
+                  Nome de quem está retirando:
+                </label>
+                <input
+                  type="text"
+                  placeholder={osRetiradaModal.cliente_nome}
+                  value={nomeRecebedor}
+                  onChange={e => setNomeRecebedor(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-400 mb-1">
+                  CPF ou Documento do Recebedor:
+                </label>
+                <input
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={docRecebedor}
+                  onChange={e => setDocRecebedor(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-2 text-xs font-mono"
+                />
+              </div>
+
+              <div className="p-2.5 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 rounded-lg text-[10px] border border-sky-200 dark:border-sky-800">
+                Termo de Garantia: Ao confirmar a entrega, o cliente declara ter recebido os óculos em perfeitas condições ópticas e mecânicas, com garantia de fábrica.
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setOsRetiradaModal(null)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  atualizarStatusOS(osRetiradaModal.id, 'ENTREGUE');
+                  setOsRetiradaModal(null);
+                  alert(`O.S. #${osRetiradaModal.numero_os} entregue ao cliente com sucesso! Comprovante assinado arquivado.`);
+                }}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
+              >
+                Confirmar Entrega
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

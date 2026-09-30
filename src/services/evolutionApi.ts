@@ -161,9 +161,51 @@ export const evolutionService = {
   },
 
   /**
-   * Dispara mensagem de texto via Evolution API com fallback inteligente para instâncias conectadas
+   * Dispara mensagem de texto da ÓTICA (Exclusiva para a instância autorizada da loja)
+   * Garante isolamento estrito: Nunca dispara pelo número de outra loja.
    */
   async enviarMensagemTexto(instanceName: string, telefone: string, texto: string, apiKey?: string): Promise<boolean> {
+    const key = apiKey || EVOLUTION_CONFIG.GLOBAL_API_KEY;
+    const url = EVOLUTION_CONFIG.BASE_URL;
+    const numeroLimpo = telefone.replace(/\D/g, '');
+    const numeroCompleto = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
+
+    if (!instanceName) {
+      console.warn('Nome da instância não informado para disparo da ótica.');
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${url}/message/sendText/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': key,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          number: numeroCompleto,
+          text: texto,
+          options: {
+            delay: 800,
+            presence: 'composing'
+          },
+          textMessage: {
+            text: texto
+          }
+        })
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn(`Erro ao enviar mensagem pela instância ${instanceName}:`, e);
+      return false;
+    }
+  },
+
+  /**
+   * Dispara mensagem do SISTEMA SAAS / WIPELIS (OTP de Cadastro de Leads, Recuperação de Senha)
+   * Utiliza exclusivamente o canal institucional master do SaaS.
+   */
+  async enviarMensagemSaaS(telefone: string, texto: string, apiKey?: string): Promise<boolean> {
     const key = apiKey || EVOLUTION_CONFIG.GLOBAL_API_KEY;
     const url = EVOLUTION_CONFIG.BASE_URL;
     const numeroLimpo = telefone.replace(/\D/g, '');
@@ -196,13 +238,12 @@ export const evolutionService = {
     };
 
     try {
-      // 1. Tenta enviar pela instância solicitada
-      if (instanceName) {
-        const ok = await tentarEnvio(instanceName);
-        if (ok) return true;
-      }
+      // 1. Tenta enviar pela instância master oficial configurada
+      const masterInst = EVOLUTION_CONFIG.INSTANCE_NAME || 'opticsys-cloud-master';
+      const okMaster = await tentarEnvio(masterInst);
+      if (okMaster) return true;
 
-      // 2. Se falhar, busca instâncias ativas/conectadas no servidor
+      // 2. Fallback somente para instâncias master/sistema ativas (ex: bandcell / wplay)
       const fetchRes = await fetch(`${url}/instance/fetchInstances`, {
         method: 'GET',
         headers: {
@@ -220,7 +261,7 @@ export const evolutionService = {
 
           for (const instObj of openInstances) {
             const name = instObj.name || instObj.instance?.instanceName;
-            if (name && name !== instanceName) {
+            if (name) {
               const ok = await tentarEnvio(name);
               if (ok) return true;
             }
@@ -228,7 +269,7 @@ export const evolutionService = {
         }
       }
     } catch (err) {
-      console.warn('Erro ao disparar mensagem via API:', err);
+      console.warn('Erro ao disparar mensagem SaaS via Evolution API:', err);
     }
 
     return false;

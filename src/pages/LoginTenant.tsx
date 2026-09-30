@@ -786,12 +786,6 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
                   ))}
                 </div>
 
-                {codigoGerado && (
-                  <div className="p-2 bg-slate-900 rounded border border-slate-800 text-[11px] text-slate-400">
-                    Código de teste gerado: <strong className="text-amber-400 font-mono tracking-widest">{codigoGerado}</strong>
-                  </div>
-                )}
-
                 <div className="space-y-3 pt-2">
                   <button
                     type="submit"

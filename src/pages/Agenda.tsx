@@ -399,27 +399,61 @@ export const Agenda: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-4 text-center">
-                      <Badge 
-                        variant={
-                          ag.status === 'CONCLUIDO' ? 'success' : 
-                          ag.status === 'EM_ATENDIMENTO' ? 'info' : 
-                          ag.status === 'CONFIRMADO' ? 'purple' : 'warning'
-                        }
+                      <select
+                        value={ag.status}
+                        onChange={e => {
+                          const novoStatus = e.target.value as any;
+                          atualizarStatusAgendamento(ag.id, novoStatus);
+                          setMensagemAlerta(`Status de ${ag.paciente_nome} alterado para "${novoStatus === 'CONCLUIDO' ? 'Exame Concluído' : novoStatus}"!`);
+                          setTimeout(() => setMensagemAlerta(null), 3000);
+                        }}
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border outline-none cursor-pointer transition-all ${
+                          ag.status === 'CONCLUIDO' 
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-200 dark:border-emerald-800' :
+                          ag.status === 'EM_ATENDIMENTO'
+                            ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/80 dark:text-blue-200 dark:border-blue-800 animate-pulse' :
+                          ag.status === 'CONFIRMADO'
+                            ? 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/80 dark:text-purple-200 dark:border-purple-800' :
+                            'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800'
+                        }`}
                       >
-                        {ag.status}
-                      </Badge>
+                        <option value="AGENDADO">🟡 Agendado</option>
+                        <option value="CONFIRMADO">🟣 Confirmado</option>
+                        <option value="EM_ATENDIMENTO">🔵 Em Consulta</option>
+                        <option value="CONCLUIDO">🟢 Exame Concluído</option>
+                        <option value="CANCELADO">🔴 Cancelado</option>
+                      </select>
                     </td>
 
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         
+                        {/* Botão Rápido: Concluir Exame */}
+                        {ag.status !== 'CONCLUIDO' ? (
+                          <button
+                            onClick={() => {
+                              atualizarStatusAgendamento(ag.id, 'CONCLUIDO');
+                              setMensagemAlerta(`Consulta de ${ag.paciente_nome} marcada como Exame Concluído!`);
+                              setTimeout(() => setMensagemAlerta(null), 3000);
+                            }}
+                            className="p-1.5 px-2 rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-[10px] font-bold flex items-center gap-1 transition-all shadow-2xs"
+                            title="Marcar Exame como Concluído"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Concluir
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 rounded">
+                            <CheckCircle2 className="w-3 h-3" /> Finalizado
+                          </span>
+                        )}
+
                         {/* Botão Notificar WhatsApp do Médico */}
                         <button
                           onClick={() => handleDispararNotificacaoManual(ag.id)}
-                          className="p-1.5 rounded-md border border-emerald-200 hover:bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:hover:bg-emerald-950/40 text-[11px] font-semibold transition-all"
+                          className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-zinc-800 dark:hover:bg-zinc-800 text-[11px] font-semibold transition-all"
                           title="Enviar Ficha Completa do Paciente no WhatsApp do Médico"
                         >
-                          <Send className="w-3.5 h-3.5" />
+                          <Send className="w-3.5 h-3.5 text-emerald-600" />
                         </button>
 
                         {/* Botão Ver Ficha Clínica */}
@@ -594,11 +628,11 @@ export const Agenda: React.FC = () => {
                           }}
                           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1"
                         >
-                          <Activity className="w-3.5 h-3.5" /> Chamar Paciente
+                          <Activity className="w-3.5 h-3.5" /> Chamar
                         </button>
                       )}
 
-                      {ag.status === 'EM_ATENDIMENTO' && (
+                      {ag.status !== 'CONCLUIDO' ? (
                         <button
                           onClick={() => {
                             atualizarStatusAgendamento(ag.id, 'CONCLUIDO');
@@ -607,8 +641,12 @@ export const Agenda: React.FC = () => {
                           }}
                           className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" /> Concluir Atendimento
+                          <CheckCircle className="w-3.5 h-3.5" /> Concluir Exame
                         </button>
+                      ) : (
+                        <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4" /> Exame Concluído
+                        </span>
                       )}
                     </div>
                   </div>

@@ -1146,12 +1146,20 @@ export const AuthAndTenantProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const atualizarFuncionario = (id: string, dados: Partial<Funcionario>) => {
-    setFuncionarios(prev => prev.map(f => {
-      if (f.id === id) {
-        return { ...f, ...dados };
-      }
-      return f;
-    }));
+    setFuncionarios(prev => {
+      const atualizados = prev.map(f => {
+        if (f.id === id) {
+          return { ...f, ...dados };
+        }
+        return f;
+      });
+      localStorage.setItem('opticsys_funcionarios', JSON.stringify(atualizados));
+      return atualizados;
+    });
+
+    if (usuarioAtual?.id === id) {
+      setUsuarioAtual(prev => ({ ...prev, ...dados }));
+    }
   };
 
   const toggleFuncionarioAtivo = (id: string) => {

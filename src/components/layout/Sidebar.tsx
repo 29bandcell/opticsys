@@ -82,38 +82,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (!usuarioAtual) return true;
     if (usuarioAtual.cargo === 'ADMIN') return true;
 
-    // Se for VENDEDOR (ex: gleidson)
+    // 1. Prioridade Máxima: Permissão individual configurada no usuário (true ou false)
+    if (usuarioAtual.permissoes && typeof (usuarioAtual.permissoes as any)[tabId] === 'boolean') {
+      return (usuarioAtual.permissoes as any)[tabId];
+    }
+
+    // 2. Fallbacks por cargo padrão quando não houver definição individual
     if (usuarioAtual.cargo === 'VENDEDOR') {
       const menusVendedor = ['dashboard', 'clientes', 'produtos', 'receitas', 'orcamentos', 'os', 'pdv', 'agenda', 'zapotica'];
-      if (!menusVendedor.includes(tabId)) {
-        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
-      }
-      return true;
+      return menusVendedor.includes(tabId);
     }
 
-    // Se for OPTOMETRISTA
     if (usuarioAtual.cargo === 'OPTOMETRISTA') {
-      const menusOpto = ['dashboard', 'clientes', 'receitas', 'agenda', 'zapotica'];
-      return menusOpto.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      const menusOpto = ['dashboard', 'clientes', 'receitas', 'agenda'];
+      return menusOpto.includes(tabId);
     }
 
-    // Se for TECNICO_MONTAGEM
     if (usuarioAtual.cargo === 'TECNICO_MONTAGEM') {
       const menusTec = ['dashboard', 'os', 'laboratorios', 'produtos'];
-      return menusTec.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      return menusTec.includes(tabId);
     }
 
-    // Se for GERENTE
     if (usuarioAtual.cargo === 'GERENTE') {
       const restritoGerente = ['assinatura', 'configuracoes'];
-      if (restritoGerente.includes(tabId)) {
-        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
-      }
-      return true;
-    }
-
-    if (usuarioAtual.permissoes && usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes] !== undefined) {
-      return usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes];
+      return !restritoGerente.includes(tabId);
     }
 
     return true;

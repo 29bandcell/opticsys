@@ -58,34 +58,30 @@ const MainApp: React.FC = () => {
     if (!usuarioAtual) return true;
     if (usuarioAtual.cargo === 'ADMIN') return true;
 
+    // 1. Prioridade Máxima: Permissão individual configurada no usuário (true ou false)
+    if (usuarioAtual.permissoes && typeof (usuarioAtual.permissoes as any)[tabId] === 'boolean') {
+      return (usuarioAtual.permissoes as any)[tabId];
+    }
+
+    // 2. Fallbacks por cargo padrão
     if (usuarioAtual.cargo === 'VENDEDOR') {
       const allowedVendedor = ['dashboard', 'clientes', 'produtos', 'receitas', 'orcamentos', 'os', 'pdv', 'agenda', 'zapotica'];
-      if (!allowedVendedor.includes(tabId)) {
-        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
-      }
-      return true;
+      return allowedVendedor.includes(tabId);
     }
 
     if (usuarioAtual.cargo === 'OPTOMETRISTA') {
-      const allowedOpto = ['dashboard', 'clientes', 'receitas', 'agenda', 'zapotica'];
-      return allowedOpto.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      const allowedOpto = ['dashboard', 'clientes', 'receitas', 'agenda'];
+      return allowedOpto.includes(tabId);
     }
 
     if (usuarioAtual.cargo === 'TECNICO_MONTAGEM') {
       const allowedTec = ['dashboard', 'os', 'laboratorios', 'produtos'];
-      return allowedTec.includes(tabId) || usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
+      return allowedTec.includes(tabId);
     }
 
     if (usuarioAtual.cargo === 'GERENTE') {
       const restrictedGerente = ['assinatura', 'configuracoes'];
-      if (restrictedGerente.includes(tabId)) {
-        return usuarioAtual.permissoes?.[tabId as keyof typeof usuarioAtual.permissoes] === true;
-      }
-      return true;
-    }
-
-    if (usuarioAtual.permissoes && usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes] !== undefined) {
-      return usuarioAtual.permissoes[tabId as keyof typeof usuarioAtual.permissoes];
+      return !restrictedGerente.includes(tabId);
     }
 
     return true;

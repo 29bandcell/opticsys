@@ -38,19 +38,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  
-  // Form de Apresentação
-  const [leadForm, setLeadForm] = useState({
-    nome: '',
-    telefone: '',
-    email: ''
-  });
-  const [showVideoModal, setShowVideoModal] = useState(false);
-
-  const handleLeadSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowVideoModal(true);
-  };
 
   const faqItems = [
     {
@@ -95,7 +82,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Links de Navegação */}
           <nav className="hidden md:flex items-center gap-8 text-xs font-semibold text-slate-700">
             <a href="#planos" className="hover:text-[#0099FF] transition-colors">Planos e Preços</a>
-            <a href="#apresentacao" className="hover:text-[#0099FF] transition-colors">Apresentação</a>
             <button
               onClick={onOpenTermos}
               className="hover:text-[#0099FF] transition-colors font-medium text-slate-700"
@@ -157,10 +143,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </button>
 
               <a
-                href="#apresentacao"
+                href="#planos"
                 className="bg-[#0B3B60] hover:bg-[#082b47] text-white font-bold text-xs px-6 py-3 rounded-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
               >
-                Assistir Apresentação
+                Ver Planos & Preços
               </a>
             </div>
 
@@ -588,167 +574,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       </section>
 
-      {/* 6. APRESENTAÇÃO & FORMULÁRIO DE CONTATO (FUNDO AZUL ESCURO) */}
-      <section id="apresentacao" className="bg-[#0B3B60] text-white py-14 px-6 scroll-mt-10">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-          
-          {/* Lado Esquerdo: Texto & Contatos */}
-          <div className="md:col-span-6 space-y-4 text-left">
-            <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-              Veja Agora <br />
-              <span className="text-[#0099FF]">Nossa Apresentação!</span>
-            </h3>
-
-            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed max-w-md font-normal">
-              Convidamos você a assistir à nossa apresentação detalhada e descobrir como o OpticSys pode transformar a gestão da sua ótica. A inovação da sua ótica está a apenas um clique de distância!
-            </p>
-
-            <div className="space-y-2 pt-2 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                <span className="font-semibold text-white font-mono">(88) 98882-2847</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#0099FF]" />
-                <a href="mailto:opticcsys@gmail.com" className="hover:text-white transition-colors">opticcsys@gmail.com</a>
-              </div>
-              <div className="flex items-center gap-2">
-                <Building className="w-4 h-4 text-[#0099FF]" />
-                <span>WIPELISCREATIVESOLUTION (WIPELIS)</span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-sky-300">
-                <button
-                  type="button"
-                  onClick={onOpenTermos}
-                  className="underline hover:text-white transition-colors cursor-pointer"
-                >
-                  Termo de Uso (Comarca de Morada Nova - CE)
-                </button>
-              </div>
+      {/* 6. ATENDIMENTO INSTITUCIONAL & CONTATO */}
+      <section className="bg-[#0B3B60] text-white py-8 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#0099FF] text-white flex items-center justify-center font-bold">
+              <Glasses className="w-5 h-5" />
             </div>
-
-            {/* Ícones Sociais */}
-            <div className="flex items-center gap-2 pt-2">
-              <a href="#" className="w-7 h-7 rounded bg-white/10 hover:bg-[#0099FF] flex items-center justify-center transition-colors">
-                <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-              </a>
-              <a href="#" className="w-7 h-7 rounded bg-white/10 hover:bg-[#0099FF] flex items-center justify-center transition-colors">
-                <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                </svg>
-              </a>
-            </div>
-
-          </div>
-
-          {/* Lado Direito: Formulário Branco */}
-          <div className="md:col-span-6">
-            <div className="bg-white text-slate-900 rounded-lg p-6 shadow-xl space-y-4 max-w-md mx-auto">
-              
-              <form onSubmit={handleLeadSubmit} className="space-y-3.5 text-xs">
-                
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Nome:</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="João da Silva"
-                    value={leadForm.nome}
-                    onChange={e => setLeadForm({ ...leadForm, nome: e.target.value })}
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-[#0099FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">DDD + Celular:</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="(99) 9 9999-9999"
-                    value={leadForm.telefone}
-                    onChange={e => setLeadForm({ ...leadForm, telefone: e.target.value })}
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-[#0099FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">E-mail:</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="seuemail@gmail.com"
-                    value={leadForm.email}
-                    onChange={e => setLeadForm({ ...leadForm, email: e.target.value })}
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-[#0099FF]"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#0B3B60] hover:bg-[#082b47] text-white font-bold text-xs py-2.5 rounded-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 mt-2"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" /> Assistir Apresentação
-                </button>
-
-              </form>
-
+            <div>
+              <span className="font-extrabold text-sm text-white">Optic<span className="text-[#0099FF]">Sys</span> Cloud ERP</span>
+              <p className="text-[11px] text-slate-300">Sistema completo de gestão, vendas e automação para sua ótica.</p>
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-200">
+            <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded">
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-mono font-bold text-white">(88) 98882-2847</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded">
+              <Mail className="w-3.5 h-3.5 text-[#0099FF]" />
+              <a href="mailto:opticcsys@gmail.com" className="hover:text-white transition-colors">opticcsys@gmail.com</a>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded">
+              <Building className="w-3.5 h-3.5 text-[#0099FF]" />
+              <span>WIPELIS</span>
+            </div>
+          </div>
         </div>
       </section>
-
-      {/* Modal da Apresentação em Vídeo / Tour */}
-      {showVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden text-slate-900">
-            <div className="bg-[#0B3B60] text-white p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Play className="w-4 h-4 fill-current text-[#0099FF]" />
-                <span className="font-bold text-xs">Apresentação OpticSys ERP</span>
-              </div>
-              <button
-                onClick={() => setShowVideoModal(false)}
-                className="text-white/80 hover:text-white font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 text-center space-y-4">
-              <div className="aspect-video bg-slate-900 rounded-lg flex flex-col items-center justify-center text-white p-4 relative overflow-hidden">
-                <div className="w-16 h-16 rounded-full bg-[#0099FF]/20 flex items-center justify-center mb-2 border border-[#0099FF]">
-                  <Play className="w-8 h-8 text-[#0099FF] fill-current ml-1" />
-                </div>
-                <p className="font-bold text-sm">Demonstração Interativa do OpticSys ERP</p>
-                <p className="text-xs text-slate-400 mt-1">Conheça os módulos de Receitas, O.S., PDV, Pupilômetro e WhatsApp em 5 minutos.</p>
-              </div>
-
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={() => {
-                    setShowVideoModal(false);
-                    onStartTrial('pro');
-                  }}
-                  className="bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold text-xs px-5 py-2.5 rounded shadow-sm"
-                >
-                  Iniciar Teste Grátis de 7 Dias
-                </button>
-                <button
-                  onClick={() => {
-                    setShowVideoModal(false);
-                    onEnterApp();
-                  }}
-                  className="bg-[#0099FF] hover:bg-[#0088EE] text-white font-bold text-xs px-5 py-2.5 rounded shadow-sm"
-                >
-                  Navegar no Sistema Demo
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Rodapé Institucional */}
       <footer className="bg-slate-950 text-slate-400 py-6 px-6 border-t border-slate-800 text-xs">

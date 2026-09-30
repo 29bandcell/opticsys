@@ -238,36 +238,12 @@ export const evolutionService = {
     };
 
     try {
-      // 1. Tenta enviar pela instância master oficial configurada
-      const masterInst = EVOLUTION_CONFIG.INSTANCE_NAME || 'opticsys-cloud-master';
+      // Envia exclusivamente pela instância master oficial do OpticSys SaaS
+      const masterInst = localStorage.getItem('opticsys_master_instance') || EVOLUTION_CONFIG.INSTANCE_NAME || 'opticsys-cloud-master';
       const okMaster = await tentarEnvio(masterInst);
       if (okMaster) return true;
 
-      // 2. Fallback somente para instâncias master/sistema ativas (ex: bandcell / wplay)
-      const fetchRes = await fetch(`${url}/instance/fetchInstances`, {
-        method: 'GET',
-        headers: {
-          'apikey': key,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (fetchRes.ok) {
-        const instances = await fetchRes.json();
-        if (Array.isArray(instances)) {
-          const openInstances = instances.filter((i: any) => 
-            i.connectionStatus === 'open' || i.instance?.state === 'open' || i.status === 'open'
-          );
-
-          for (const instObj of openInstances) {
-            const name = instObj.name || instObj.instance?.instanceName;
-            if (name) {
-              const ok = await tentarEnvio(name);
-              if (ok) return true;
-            }
-          }
-        }
-      }
+      console.warn(`[OpticSys] Instância master '${masterInst}' indisponível ou desconectada no momento.`);
     } catch (err) {
       console.warn('Erro ao disparar mensagem SaaS via Evolution API:', err);
     }

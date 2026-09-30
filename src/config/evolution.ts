@@ -9,7 +9,7 @@ export const EVOLUTION_CONFIG = {
   GLOBAL_API_KEY: import.meta.env.VITE_EVOLUTION_API_KEY || '429683C4C977415CAAFCCE10F7D57E11',
 
   // Nome da Instância Master da Wipelis / OpticSys
-  INSTANCE_NAME: import.meta.env.VITE_EVOLUTION_INSTANCE || 'opticsys-cloud-master',
+  INSTANCE_NAME: import.meta.env.VITE_EVOLUTION_INSTANCE || 'bandcellgestao',
 
   // Prefixo para identificar instâncias criadas pelo sistema OpticSys
   INSTANCE_PREFIX: 'opticsys_'

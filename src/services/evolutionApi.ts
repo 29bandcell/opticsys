@@ -238,10 +238,21 @@ export const evolutionService = {
     };
 
     try {
-      // Envia exclusivamente pela instância master oficial do OpticSys SaaS
-      const masterInst = localStorage.getItem('opticsys_master_instance') || EVOLUTION_CONFIG.INSTANCE_NAME || 'opticsys-cloud-master';
+      // Instâncias prioritárias do SaaS
+      const masterInst = localStorage.getItem('opticsys_master_instance') || EVOLUTION_CONFIG.INSTANCE_NAME || 'bandcellgestao';
       const okMaster = await tentarEnvio(masterInst);
       if (okMaster) return true;
+
+      // Fallbacks para instâncias conectadas conhecidas
+      if (masterInst !== 'bandcellgestao') {
+        const okBandcell = await tentarEnvio('bandcellgestao');
+        if (okBandcell) return true;
+      }
+
+      if (masterInst !== 'BANDCELL') {
+        const okBandcell2 = await tentarEnvio('BANDCELL');
+        if (okBandcell2) return true;
+      }
 
       console.warn(`[OpticSys] Instância master '${masterInst}' indisponível ou desconectada no momento.`);
     } catch (err) {

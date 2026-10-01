@@ -1,20 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, Component, ReactNode } from 'react';
 import { 
   Crown, 
   Lock, 
-  ArrowLeft, 
-  ShieldCheck, 
   Glasses, 
-  KeyRound, 
-  CheckCircle2, 
-  AlertCircle,
-  ExternalLink
+  KeyRound,
+  AlertTriangle
 } from 'lucide-react';
 import { SuperAdminWipelis } from './SuperAdminWipelis';
 
 interface WipelisMasterPortalProps {
   onBackToApp: () => void;
   onGoToLanding: () => void;
+}
+
+// Error Boundary para capturar crash no painel e exibir mensagem amigável
+interface EBState { hasError: boolean; errorMsg: string; }
+class MasterErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMsg: error?.message || 'Erro desconhecido' };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
+          <AlertTriangle className="w-12 h-12 text-rose-400" />
+          <h2 className="text-lg font-bold text-white">Erro ao carregar o Painel Master</h2>
+          <p className="text-sm text-slate-400 max-w-md">{this.state.errorMsg}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, errorMsg: '' })}
+            className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2 rounded-lg text-sm"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
@@ -24,20 +50,21 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [senhaMaster, setSenhaMaster] = useState('');
   const [erroSenha, setErroSenha] = useState(false);
+  const [tentativas, setTentativas] = useState(0);
+
+  const SENHA_CORRETA = 'wipelis2026';
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Senha Master padrão para o Dono do SaaS
-    if (senhaMaster === 'wipelis2026' || senhaMaster === 'admin' || senhaMaster === 'master') {
+    if (senhaMaster === SENHA_CORRETA) {
       setIsAuthenticated(true);
       setErroSenha(false);
+      setTentativas(0);
     } else {
       setErroSenha(true);
+      setTentativas(prev => prev + 1);
+      setSenhaMaster('');
     }
-  };
-
-  const handleAcessoRapido = () => {
-    setIsAuthenticated(true);
   };
 
   // Se não estiver autenticado, exibe a tela de login exclusiva do Master
@@ -77,12 +104,13 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
                   placeholder="Digite sua senha master..."
                   value={senhaMaster}
                   onChange={e => setSenhaMaster(e.target.value)}
+                  autoComplete="current-password"
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
                 />
               </div>
               {erroSenha && (
                 <p className="text-rose-400 text-[11px] mt-1 font-semibold">
-                  Senha incorreta. (Dica: utilize a chave padrão <code className="text-amber-300 font-mono">wipelis2026</code>)
+                  Senha incorreta.{tentativas >= 3 ? ' Verifique sua senha master e tente novamente.' : ' Tente novamente.'}
                 </p>
               )}
             </div>
@@ -94,15 +122,7 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
               <Lock className="w-4 h-4" /> Entrar no Painel Master
             </button>
 
-            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <button
-                type="button"
-                onClick={handleAcessoRapido}
-                className="text-amber-400 hover:underline font-semibold"
-              >
-                ⚡ Entrar Direto (Acesso Rápido)
-              </button>
-
+            <div className="pt-2 border-t border-slate-800/80 flex justify-end text-[11px] text-slate-400">
               <button
                 type="button"
                 onClick={onBackToApp}
@@ -160,7 +180,7 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
             </button>
 
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={() => { setIsAuthenticated(false); setSenhaMaster(''); }}
               className="text-rose-400 hover:text-rose-300 border border-rose-900/50 hover:bg-rose-950/50 px-3 py-1.5 rounded font-bold transition-colors"
             >
               Sair do Master
@@ -170,9 +190,11 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
         </div>
       </header>
 
-      {/* Conteúdo do Super Admin */}
+      {/* Conteúdo do Super Admin envolto em Error Boundary */}
       <main className="max-w-7xl mx-auto p-6">
-        <SuperAdminWipelis />
+        <MasterErrorBoundary>
+          <SuperAdminWipelis />
+        </MasterErrorBoundary>
       </main>
 
     </div>

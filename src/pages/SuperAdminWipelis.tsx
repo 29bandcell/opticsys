@@ -31,7 +31,8 @@ import {
   Layers,
   Key,
   FileCode2,
-  Check
+  Check,
+  History
 } from 'lucide-react';
 import { useAuthAndTenant } from '../context/AuthAndTenantContext';
 import { LeadSaaS, TenantSaaS, StatusLead, InteracaoCRMLead } from '../types';

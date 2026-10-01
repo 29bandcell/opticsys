@@ -108,121 +108,17 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
         }
       }
 
-      // 3. Procura no registro SaaS Master de Tenants
-      if (!funcEncontrado && tenantsSaaS && tenantsSaaS.length > 0) {
-        const tenantEncontrado = tenantsSaaS.find(t => 
-          t.responsavel_email?.toLowerCase() === emailLimpo ||
-          (t.responsavel_telefone && t.responsavel_telefone.replace(/\D/g, '') === digitosTelefone && digitosTelefone.length >= 8)
-        );
-        if (tenantEncontrado) {
-          const lojaId = `loja-${tenantEncontrado.id}`;
-          lojaEncontrada = {
-            id: lojaId,
-            nome_fantasia: tenantEncontrado.nome_fantasia,
-            razao_social: tenantEncontrado.razao_social || tenantEncontrado.nome_fantasia,
-            cnpj: tenantEncontrado.cnpj_cpf || 'Não informado',
-            telefone: tenantEncontrado.responsavel_telefone,
-            email: tenantEncontrado.responsavel_email,
-            endereco: 'Endereço da Ótica',
-            cidade: tenantEncontrado.cidade || 'Morada Nova',
-            uf: tenantEncontrado.estado || 'CE',
-            plano: tenantEncontrado.plano === 'PLANO_PRO_NF_149' ? 'pro_nf' : 'pro',
-            status: tenantEncontrado.status === 'ATIVO' ? 'ativo' : 'trial',
-            config_impressao: {
-              largura_mm: 80,
-              imprimir_grade_grau: true,
-              imprimir_termo_garantia: true,
-              mensagem_rodape: 'Obrigado pela preferência!'
-            }
-          };
-          funcEncontrado = {
-            id: `func-${tenantEncontrado.id}`,
-            loja_id: lojaId,
-            nome: tenantEncontrado.responsavel_nome,
-            email: tenantEncontrado.responsavel_email,
-            telefone: tenantEncontrado.responsavel_telefone,
-            cargo: 'ADMIN',
-            senha: senhaLimpa,
-            comissao_produto_pct: 0,
-            comissao_servico_pct: 0,
-            permissoes: {
-              dashboard: true,
-              clientes: true,
-              receitas: true,
-              os: true,
-              pdv: true,
-              estoque: true,
-              laboratorios: true,
-              financeiro: true,
-              configuracoes: true
-            },
-            ativo: true
-          };
-        }
-      }
-
-      // 4. Procura no registro SaaS Master de Leads
-      if (!funcEncontrado && leadsSaaS && leadsSaaS.length > 0) {
-        const leadEncontrado = leadsSaaS.find(l => 
-          l.email?.toLowerCase() === emailLimpo ||
-          (l.telefone && l.telefone.replace(/\D/g, '') === digitosTelefone && digitosTelefone.length >= 8)
-        );
-        if (leadEncontrado) {
-          const lojaId = `loja-${leadEncontrado.id}`;
-          lojaEncontrada = {
-            id: lojaId,
-            nome_fantasia: leadEncontrado.nome_otica,
-            razao_social: leadEncontrado.nome_otica,
-            cnpj: 'Não informado',
-            telefone: leadEncontrado.telefone,
-            email: leadEncontrado.email,
-            endereco: 'Endereço da Ótica',
-            cidade: leadEncontrado.cidade || 'Morada Nova',
-            uf: leadEncontrado.estado || 'CE',
-            plano: leadEncontrado.plano_interesse === 'PLANO_PRO_NF_149' ? 'pro_nf' : 'pro',
-            status: 'trial',
-            config_impressao: {
-              largura_mm: 80,
-              imprimir_grade_grau: true,
-              imprimir_termo_garantia: true,
-              mensagem_rodape: 'Obrigado pela preferência!'
-            }
-          };
-          funcEncontrado = {
-            id: `func-${leadEncontrado.id}`,
-            loja_id: lojaId,
-            nome: leadEncontrado.nome_responsavel,
-            email: leadEncontrado.email,
-            telefone: leadEncontrado.telefone,
-            cargo: 'ADMIN',
-            senha: senhaLimpa,
-            comissao_produto_pct: 0,
-            comissao_servico_pct: 0,
-            permissoes: {
-              dashboard: true,
-              clientes: true,
-              receitas: true,
-              os: true,
-              pdv: true,
-              estoque: true,
-              laboratorios: true,
-              financeiro: true,
-              configuracoes: true
-            },
-            ativo: true
-          };
-        }
-      }
-
-      // 5. Validação da Autenticação
+      // 5. Validação da Autenticação (apenas dados reais do localStorage)
       if (funcEncontrado) {
-        const senhaEsperada = funcEncontrado.senha || 'admin123';
-        const senhaValida = 
-          senhaLimpa === senhaEsperada || 
-          senhaLimpa === 'admin123' || 
-          senhaLimpa === '123456' || 
-          senhaLimpa === 'opticsys' ||
-          !funcEncontrado.senha;
+        const senhaEsperada = funcEncontrado.senha;
+
+        // Sem senha cadastrada no registro → pede para resetar
+        if (!senhaEsperada) {
+          setErroLogin('Conta sem senha definida. Use "Esqueceu sua senha?" para cadastrar uma.');
+          return;
+        }
+
+        const senhaValida = senhaLimpa === senhaEsperada;
 
         if (!senhaValida) {
           setErroLogin('Senha incorreta. Verifique sua senha ou clique em "Esqueceu sua senha?".');
@@ -235,7 +131,12 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
         }
 
         // Garante a loja
-        const lojaFinal = lojaEncontrada || localLojas[0] || lojas[0];
+        const lojaFinal = lojaEncontrada || localLojas.find(l => l.id === funcEncontrado?.loja_id) || localLojas[0];
+
+        if (!lojaFinal) {
+          setErroLogin('Conta encontrada mas nenhuma ótica associada. Contate o suporte.');
+          return;
+        }
 
         // Define a sessão ativa no sessionStorage
         sessionStorage.setItem('opticsys_is_authenticated', 'true');
@@ -244,16 +145,14 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
         localStorage.removeItem('opticsys_logged_user_id');
 
         setUsuarioAtual(funcEncontrado);
-        if (lojaFinal) {
-          setLojaAtiva(lojaFinal);
-        }
+        setLojaAtiva(lojaFinal);
 
         onSuccess();
         return;
       }
 
       // Se não encontrou usuário
-      setErroLogin('Usuário não encontrado. Verifique o e-mail ou WhatsApp digitado.');
+      setErroLogin('Nenhuma conta encontrada com este e-mail ou WhatsApp. Verifique os dados ou crie uma nova conta.');
     }, 300);
   };
 
@@ -292,13 +191,45 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
   const handleEnviarCodigoRecuperacao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identificadorRecuperar.trim()) {
-      setErroRecuperacao('Informe o e-mail cadastrado da sua conta.');
+      setErroRecuperacao('Informe o e-mail ou WhatsApp cadastrado na sua conta.');
       return;
     }
 
-    const telFinal = (whatsappRecuperar || identificadorRecuperar).replace(/\D/g, '');
+    // ── Busca conta no localStorage ANTES de qualquer envio ──
+    const identLimpo = identificadorRecuperar.trim().toLowerCase();
+    const identDigitos = identLimpo.replace(/\D/g, '');
+
+    let localFuncs = funcionarios;
+    let localLojas = lojas;
+    try {
+      const rawFuncs = localStorage.getItem('opticsys_funcionarios');
+      if (rawFuncs) localFuncs = JSON.parse(rawFuncs);
+      const rawLojas = localStorage.getItem('opticsys_lojas');
+      if (rawLojas) localLojas = JSON.parse(rawLojas);
+    } catch (_) { /* usa estado em memória */ }
+
+    const funcEncontrado = localFuncs.find(f =>
+      f.email?.toLowerCase() === identLimpo ||
+      (f.telefone && f.telefone.replace(/\D/g, '') === identDigitos && identDigitos.length >= 8)
+    );
+    const lojaEncontrada = !funcEncontrado
+      ? localLojas.find(l =>
+          l.email?.toLowerCase() === identLimpo ||
+          (l.telefone && l.telefone.replace(/\D/g, '') === identDigitos && identDigitos.length >= 8)
+        )
+      : null;
+
+    if (!funcEncontrado && !lojaEncontrada) {
+      setErroRecuperacao('Nenhuma conta encontrada com este e-mail ou WhatsApp. Verifique os dados ou crie uma nova conta.');
+      return;
+    }
+
+    // Usa o telefone ARMAZENADO no cadastro, não o que o usuário digitou
+    const telefoneCadastrado = funcEncontrado?.telefone || lojaEncontrada?.telefone || '';
+    const telFinal = telefoneCadastrado.replace(/\D/g, '');
+
     if (canalEnvio === 'WHATSAPP' && telFinal.length < 10) {
-      setErroRecuperacao('Por favor, informe seu número de WhatsApp com DDD para envio do código.');
+      setErroRecuperacao('A conta encontrada não possui WhatsApp cadastrado. Use a opção E-mail.');
       return;
     }
 
@@ -341,8 +272,8 @@ export const LoginTenant: React.FC<LoginTenantProps> = ({
       return;
     }
 
-    // Valida o código gerado (ou chave mestre de teste 123456)
-    if (codigoCompleto === codigoGerado || codigoCompleto === '123456') {
+    // Valida apenas o código gerado nesta sessão
+    if (codigoCompleto === codigoGerado) {
       setErroRecuperacao(null);
       setEtapaRecuperacao('NOVA_SENHA');
     } else {

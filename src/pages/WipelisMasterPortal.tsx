@@ -1,46 +1,14 @@
-import React, { useState, Component, ReactNode } from 'react';
-import { 
-  Crown, 
-  Lock, 
-  Glasses, 
-  KeyRound,
-  AlertTriangle
-} from 'lucide-react';
-import { SuperAdminWipelis } from './SuperAdminWipelis';
+import React, { useState, Suspense, lazy } from 'react';
+import { Crown, Lock, Glasses, KeyRound, Loader2 } from 'lucide-react';
+
+// Lazy load do painel pesado — evita crash de "Illegal constructor" no bundle
+const SuperAdminWipelis = lazy(() =>
+  import('./SuperAdminWipelis').then(m => ({ default: m.SuperAdminWipelis }))
+);
 
 interface WipelisMasterPortalProps {
   onBackToApp: () => void;
   onGoToLanding: () => void;
-}
-
-// Error Boundary para capturar crash no painel e exibir mensagem amigável
-interface EBState { hasError: boolean; errorMsg: string; }
-class MasterErrorBoundary extends Component<{ children: ReactNode }, EBState> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, errorMsg: '' };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, errorMsg: error?.message || 'Erro desconhecido' };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
-          <AlertTriangle className="w-12 h-12 text-rose-400" />
-          <h2 className="text-lg font-bold text-white">Erro ao carregar o Painel Master</h2>
-          <p className="text-sm text-slate-400 max-w-md">{this.state.errorMsg}</p>
-          <button
-            onClick={() => this.setState({ hasError: false, errorMsg: '' })}
-            className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2 rounded-lg text-sm"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
@@ -67,23 +35,20 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
     }
   };
 
-  // Se não estiver autenticado, exibe a tela de login exclusiva do Master
+  // ── Tela de Login ──────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans selection:bg-amber-500 selection:text-slate-950">
-        
-        {/* Card de Login Master */}
+
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl space-y-6">
-          
+
           <div className="text-center space-y-2">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-black mx-auto shadow-lg shadow-amber-500/20">
               <Crown className="w-8 h-8 fill-current" />
             </div>
-            
             <h1 className="text-xl font-black tracking-tight text-white">
               WIPELIS<span className="text-amber-400">HUB</span>
             </h1>
-            
             <p className="text-xs text-slate-400">
               Portal Master Exclusivo • <strong>WIPELISCREATIVESOLUTION</strong>
             </p>
@@ -122,7 +87,7 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
               <Lock className="w-4 h-4" /> Entrar no Painel Master
             </button>
 
-            <div className="pt-2 border-t border-slate-800/80 flex justify-end text-[11px] text-slate-400">
+            <div className="pt-2 border-t border-slate-800/80 flex justify-end text-[11px]">
               <button
                 type="button"
                 onClick={onBackToApp}
@@ -135,23 +100,21 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
 
         </div>
 
-        {/* Rodapé discreto */}
         <p className="text-[11px] text-slate-600 mt-6 text-center">
-          Wipelis Creative Solution • Gestão Central de Licenças, Leads & Assinaturas
+          Wipelis Creative Solution • Gestão Central de Licenças, Leads &amp; Assinaturas
         </p>
 
       </div>
     );
   }
 
-  // Se autenticado, exibe o painel SuperAdmin completo com header dedicado
+  // ── Painel Master (autenticado) ────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-      
-      {/* Header Superior Master Wipelis */}
+
       <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 px-6 py-3 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          
+
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-black">
               <Crown className="w-4 h-4 fill-current" />
@@ -190,11 +153,15 @@ export const WipelisMasterPortal: React.FC<WipelisMasterPortalProps> = ({
         </div>
       </header>
 
-      {/* Conteúdo do Super Admin envolto em Error Boundary */}
       <main className="max-w-7xl mx-auto p-6">
-        <MasterErrorBoundary>
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[60vh] gap-3 text-slate-400">
+            <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+            <span className="text-sm font-semibold">Carregando Painel Master...</span>
+          </div>
+        }>
           <SuperAdminWipelis />
-        </MasterErrorBoundary>
+        </Suspense>
       </main>
 
     </div>
